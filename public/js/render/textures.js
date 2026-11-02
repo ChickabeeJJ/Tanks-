@@ -12,6 +12,12 @@ function canvas(w, h) {
   return c;
 }
 
+function shadeHex(hex, k) {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (c) => Math.max(0, Math.min(255, Math.round(c * k)));
+  return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => f(c).toString(16).padStart(2, '0')).join('');
+}
+
 function seeded(seed) {
   let s = seed >>> 0 || 1;
   return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -105,7 +111,8 @@ function drawSkin(ctx, w, h, skin) {
     }
     case 'stars': {
       const g = ctx.createLinearGradient(0, 0, w, h);
-      g.addColorStop(0, '#2b1468'); g.addColorStop(0.5, '#141040'); g.addColorStop(1, '#5a1a6e');
+      const sb = skin.base || '#141040';
+      g.addColorStop(0, shadeHex(sb, 1.6)); g.addColorStop(0.5, sb); g.addColorStop(1, skin.alt && skin.id !== 'galaxy' ? shadeHex(skin.alt, 0.45) : '#5a1a6e');
       ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
       for (let i = 0; i < 160; i++) {
         ctx.fillStyle = `rgba(255,255,255,${0.4 + rnd() * 0.6})`;
@@ -123,8 +130,29 @@ function drawSkin(ctx, w, h, skin) {
     }
     case 'shine': {
       const g = ctx.createLinearGradient(0, 0, 0, h);
-      g.addColorStop(0, '#fff3b0'); g.addColorStop(0.35, '#ffcf3a'); g.addColorStop(0.7, '#d99a14'); g.addColorStop(1, '#ffcf3a');
+      const hi = skin.alt || '#fff3b0', mid = skin.base || '#ffcf3a';
+      g.addColorStop(0, hi); g.addColorStop(0.35, mid); g.addColorStop(0.7, shadeHex(mid, 0.78)); g.addColorStop(1, mid);
       ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)';
+      for (let i = 0; i < 6; i++) { const x = (i / 6) * w + 10; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + 14, 0); ctx.lineTo(x - 20, h); ctx.lineTo(x - 34, h); ctx.fill(); }
+      break;
+    }
+    case 'aurora': {
+      for (let i = 0; i < 5; i++) {
+        const y0 = (h * (i + 0.5)) / 5;
+        const g = ctx.createLinearGradient(0, y0 - 18, 0, y0 + 18);
+        const c = i % 2 ? skin.alt2 || skin.alt : skin.alt;
+        g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.5, c); g.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = 0.75;
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.moveTo(0, y0);
+        for (let x = 0; x <= w; x += 8) ctx.lineTo(x, y0 - 16 + Math.sin(x / 22 + i) * 9);
+        for (let x = w; x >= 0; x -= 8) ctx.lineTo(x, y0 + 16 + Math.sin(x / 22 + i) * 9);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      for (let i = 0; i < 40; i++) { ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.fillRect(rnd() * w, rnd() * h, 1.5, 1.5); }
       break;
     }
     case 'snow': {

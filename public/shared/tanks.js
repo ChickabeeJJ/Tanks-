@@ -58,17 +58,17 @@ T('blastlord', 'Blast Lord', 'Special', 1, 15, 'default',
 // ---------- Specials from chests & the wheel (Lv 1, branch off Default) ----------
 T('delta', 'Delta', 'Special', 1, 1, 'default',
   [b({ len: 3.7, dmg: 1.1 }), b({ a: PI - 0.5, len: 3.0, w: 0.8, dmg: 0.5, recoil: 2.2, delay: 0.5 }), b({ a: PI + 0.5, len: 3.0, w: 0.8, dmg: 0.5, recoil: 2.2, delay: 0.5 })],
-  { unlock: { type: 'chest' }, body: { speed: 1.1 }, desc: 'Chest exclusive. Fast boosters.' });
+  { unlock: { type: 'gems', price: 8000 }, body: { speed: 1.1 }, desc: 'Fast boosters.' });
 T('recursive', 'Recursive', 'Special', 1, 1, 'default',
-  [b({ kind: 'split', w: 1.2, rel: 1.4, dmg: 1.0, pen: 1.2 })], { unlock: { type: 'chest' }, desc: 'Chest exclusive. Bullets split.' });
+  [b({ kind: 'split', w: 1.2, rel: 1.4, dmg: 1.0, pen: 1.2 })], { unlock: { type: 'gems', price: 12000 }, desc: 'Bullets split.' });
 T('ultraspiker', 'Ultraspiker', 'Melee', 1, 1, 'default', [],
-  { unlock: { type: 'chest' }, body: { speed: 1.12, hp: 1.5, bodyDmg: 3.2, spikes: 2 }, desc: 'Chest exclusive. Brutal rammer.' });
+  { unlock: { type: 'gems', price: 18000 }, body: { speed: 1.12, hp: 1.5, bodyDmg: 3.2, spikes: 2 }, desc: 'Brutal rammer.' });
 T('prime', 'Prime', 'Special', 1, 1, 'default',
   [b({ len: 3.9, w: 1.3, dmg: 2.2, pen: 2, rel: 1.15 }), b({ a: 0.6, len: 2.9, w: 0.7, dmg: 0.6, delay: 0.5 }), b({ a: -0.6, len: 2.9, w: 0.7, dmg: 0.6, delay: 0.5 })],
-  { unlock: { type: 'chest' }, body: { hp: 1.2 }, desc: 'Chest exclusive. Heavy hitter.' });
+  { unlock: { type: 'gems', price: 22000 }, body: { hp: 1.2 }, desc: 'Heavy hitter.' });
 T('phantom', 'Phantom', 'Special', 1, 1, 'default',
   [b({ len: 4.6, w: 0.85, spd: 1.7, dmg: 2.0, pen: 1.5, rel: 1.6, life: 1.4, spread: 0.01 })],
-  { unlock: { type: 'chest' }, special: 'stealth', fov: 1.25, desc: 'Secret! Turns invisible when still.' });
+  { unlock: { type: 'gems', price: 35000 }, special: 'stealth', fov: 1.25, desc: 'Turns invisible when still.' });
 T('allspiker', 'Allspiker', 'Melee', 1, 1, 'default', [],
   { unlock: { type: 'wheel' }, body: { speed: 1.18, hp: 1.4, bodyDmg: 3.0, spikes: 3 }, desc: 'Wheel exclusive [PERM].' });
 T('ultra', 'Ultra', 'Special', 1, 1, 'default', dirs(4, { w: 1.3, dmg: 1.1, rel: 1.2 }),

@@ -97,8 +97,10 @@ export const WHEEL = [
 ];
 
 export const CHESTS = [
-  { id: 'frozen', name: 'Frozen Chest', price: 5000, color: '#bfeeff', drops: [['delta', 62.5], ['recursive', 25], ['ultraspiker', 7.5], ['prime', 5]] },
-  { id: 'lava', name: 'Lava Chest', price: 20000, color: '#ff7a2a', drops: [['recursive', 58], ['ultraspiker', 25], ['prime', 15], ['phantom', 2]] },
+  { id: 'frozen', name: 'Frozen Chest', price: 5000, color: '#9fe6ff', dark: '#2a7fb0',
+    drops: [['glacier', 45], ['aurora', 30], ['blizzard', 18], ['diamond', 6], ['nebula', 1]] },
+  { id: 'lava', name: 'Lava Chest', price: 20000, color: '#ff8a2a', dark: '#a3360a',
+    drops: [['ember', 45], ['magma', 30], ['inferno', 18], ['sunforge', 6], ['eclipse', 1]] },
 ];
 
 export const STORE_GEMS = [
@@ -350,9 +352,9 @@ export const profile = {
     } else if (!this.spend(chest.price)) return null;
     let r = Math.random() * 100, pick = chest.drops[0][0];
     for (const [id, p] of chest.drops) { r -= p; if (r <= 0) { pick = id; break; } }
-    let dup = false;
-    if (this.ownsTank(pick)) { dup = true; this.addGems(Math.round(chest.price * 0.5)); } else this.giveTank(pick);
+    let dup = false, refund = 0;
+    if (this.ownsSkin(pick)) { dup = true; refund = Math.round(chest.price * 0.5); this.addGems(refund); } else this.giveSkin(pick);
     this.emit('chest');
-    return { tank: pick, dup };
+    return { skin: pick, dup, refund };
   },
 };

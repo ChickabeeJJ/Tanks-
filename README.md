@@ -24,7 +24,7 @@ If the page can't reach a server, it runs the same simulation in the browser wit
 | Tank tree | ~50 tanks over tiers Lv 15 / 30 / 42 / 110 (Double → Triway → Fiveway → Phoenix, Scout → Hitman → Ace/Shadow, Spammer, Side, Grinder/Spiker melee, Freezer, Flame, Railgun, Blast Lord, Orbitron…). Some cost gems, some come from quests, chests or the wheel. |
 | Keys | **Q** tank upgrades · **E** stats (**1-8**) · **F** auto fire · **R** auto spin · **C** turn 180° · **Shift** camera lock · **X** index · **G** gifts · **Enter** chat · WASD + mouse · right-drag rotates the camera · scroll zooms |
 | Progress | Persistent level (Lv 400 needs ~90K XP, like the original). Stat points scale with level, and stat caps can be raised in the Upgrades Shop. |
-| Meta | Rank (Bronze → Legend, with daily tasks), Daily/Weekly/Unique/Event quests, playtime Gifts, Wheel (free spin every 4h), Frozen/Lava chests (with a free daily chest), Bag, Index, Store |
+| Meta | Rank (Bronze → Legend, with daily tasks), Daily/Weekly/Unique/Event quests, playtime Gifts, Wheel (free spin every 4h), Frozen/Lava chests with exclusive skins in 5 rarities and a casino-style reel opening (free Frozen chest daily), Bag, Index, Store |
 | Mobile | Twin virtual joysticks and a compact HUD |
 
 ### Robux → CrazyGames (no ads in this launch)

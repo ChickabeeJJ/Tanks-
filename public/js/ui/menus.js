@@ -1,7 +1,7 @@
 // All popup windows: Store, Gifts, Quests, Rank, Index, Bag, Wheel, Chests, Shops, Settings...
 import { profile, QUESTS, GIFTS, WHEEL, CHESTS, STORE_GEMS, RANK_TASKS, RANK_TIERS, RANK_COLORS, rankTier, rankNeed, MAX_RANK, capPrice, boostPrice, dayId } from '../profile.js';
 import { TANK_LIST, TANKS, childrenOf, pathTo } from '../../shared/tanks.js';
-import { SKINS } from '../../shared/skins.js';
+import { SKINS, SKIN_MAP, RARITY } from '../../shared/skins.js';
 import { STATS, BASE_CAP, MAX_CAP, MODES } from '../../shared/config.js';
 import { fmt, fmtFull } from '../../shared/progression.js';
 import { skinPreview } from '../render/textures.js';
@@ -494,41 +494,177 @@ export function createMenus(G) {
     }
   }
 
-  // ------------------------------------------------------------------ chests
+  // ------------------------------------------------------------------ chests (skins) + casino opening
+  function chestArt(c, size = 150) {
+    // original chest illustration, tinted per chest
+    const dk = c.dark, lt = c.color;
+    return `<svg class="chest-art" width="${size}" height="${size}" viewBox="0 0 160 160">
+      <defs><linearGradient id="cb-${c.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${lt}"/><stop offset="1" stop-color="${dk}"/></linearGradient></defs>
+      <ellipse cx="80" cy="142" rx="58" ry="9" fill="rgba(0,0,0,.18)"/>
+      <g class="lid"><path d="M22 70c0-30 22-44 58-44s58 14 58 44z" fill="url(#cb-${c.id})" stroke="${dk}" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M70 27h20v43H70z" fill="#ffd21f" stroke="#a35f00" stroke-width="4"/></g>
+      <rect x="22" y="70" width="116" height="66" rx="8" fill="url(#cb-${c.id})" stroke="${dk}" stroke-width="5"/>
+      <path d="M70 70h20v66H70z" fill="#ffd21f" stroke="#a35f00" stroke-width="4"/>
+      <rect x="66" y="78" width="28" height="30" rx="6" fill="#fff3b0" stroke="#a35f00" stroke-width="4"/>
+      <circle cx="80" cy="90" r="5" fill="#a35f00"/><path d="M80 92v9" stroke="#a35f00" stroke-width="4" stroke-linecap="round"/>
+      <path d="M32 80h30M32 92h22" stroke="rgba(255,255,255,.45)" stroke-width="5" stroke-linecap="round"/>
+    </svg>`;
+  }
+  const rar = (id) => RARITY[SKIN_MAP[id].rarity] || RARITY.common;
+  function skinCard(id, cls = '') {
+    const R = rar(id);
+    return `<div class="rl-item ${cls}" style="--rc:${R.color};--rd:${R.dark}"><img src="${skinPreview(id, 96)}" alt=""><span class="lbl nm">${SKIN_MAP[id].name}</span></div>`;
+  }
+
   function chests() {
     modal({
-      title: 'Chests', icon: 'chest', wide: true, tick: (st) => { const el = st.el.querySelector('#ch-free'); if (el) el.textContent = freeLabel(); },
+      title: 'Chests', icon: 'chest', wide: true,
+      tick: (st) => { const el = st.el.querySelector('#ch-free'); if (el) el.innerHTML = freeLabel(); },
       render(b, st) {
-        const row = h('<div class="row" style="align-items:stretch;flex-wrap:wrap"></div>');
+        const row = h('<div class="chest-row"></div>');
         for (const c of CHESTS) {
-          const drops = c.drops.map(([id, p]) => `<div class="card" style="padding:3px;cursor:default"><img src="${tankIcon(id, 64)}" style="width:48px;height:48px"><div>${id === 'phantom' ? '???' : TANKS[id].name}</div><div class="price">${p}%</div>${profile.ownsTank(id) ? '<div class="owned">Owned</div>' : ''}</div>`).join('');
-          const el = h(`<div class="box col" style="flex:1;min-width:280px">
-            <div class="row"><div style="width:70px;height:70px;border-radius:12px;background:${c.color};display:flex;align-items:center;justify-content:center;border:3.5px solid #0f2a4d">${ic('chest', 54)}</div><div class="big">${c.name}</div></div>
-            <div class="row" style="flex-wrap:wrap;gap:4px">${drops}</div>
-            <button class="btn green stroke">${ic('gem', 20)} ${fmtFull(c.price)} - Open</button>
-            ${c.id === 'frozen' ? '<button class="btn yellow stroke" id="ch-free"></button>' : ''}
-            <div class="muted">Duplicates refund 50% of the price.</div></div>`);
-          el.querySelector('.btn.green').addEventListener('click', () => openChest(c, false, st));
+          const drops = c.drops.map(([id, p]) => {
+            const R = rar(id);
+            return `<div class="drop" style="--rc:${R.color};--rd:${R.dark}" title="${SKIN_MAP[id].name} (${R.name})">
+              <img src="${skinPreview(id, 64)}" alt="">${profile.ownsSkin(id) ? `<span class="own">${ic('check', 18)}</span>` : ''}<span class="pct">${p}%</span></div>`;
+          }).join('');
+          const el = h(`<div class="chest-card" style="--cc:${c.color};--cd:${c.dark}">
+            <div class="chest-top"><div class="rays"></div>${chestArt(c, 150)}</div>
+            <div class="chest-name lbl">${c.name}</div>
+            <div class="chest-sub">Contains exclusive skins</div>
+            <div class="drops">${drops}</div>
+            <div class="chest-btns">
+              <button class="btn green" data-open="paid">${ic('gem', 22)} ${fmtFull(c.price)}</button>
+              ${c.id === 'frozen' ? '<button class="btn yellow" id="ch-free"></button>' : ''}
+            </div></div>`);
+          el.querySelector('[data-open]').addEventListener('click', () => start(c, false, st));
           const fb = el.querySelector('#ch-free');
-          if (fb) { fb.textContent = freeLabel(); fb.addEventListener('click', () => openChest(c, true, st)); }
+          if (fb) { fb.innerHTML = freeLabel(); fb.addEventListener('click', () => start(c, true, st)); }
           row.appendChild(el);
         }
         b.appendChild(row);
+        b.appendChild(h('<div class="muted center" style="margin-top:8px">Duplicates refund 50% of the chest price.</div>'));
       },
     });
+
     function freeLabel() {
       const left = profile.d.chest.freeAt - Date.now();
-      return left > 0 ? `Free in ${timeLeft(left)}` : 'Open FREE';
+      return left > 0 ? `${ic('clock', 20)} Free in ${timeLeft(left)}` : `${ic('gift', 22)} Open FREE`;
     }
-    function openChest(c, free, st) {
+
+    function start(c, free, st) {
       const res = profile.openChest(c, free);
       if (!res) { Audio.error(); G.hud.toast(free ? 'Free chest not ready yet!' : 'Not enough Gems!', 'red'); return; }
-      Audio.reward();
-      SDK.happytime();
-      const name = TANKS[res.tank].name;
-      G.hud.toast(res.dup ? `${name} (duplicate) - refunded ${fmtFull(c.price / 2)} Gems` : `You got ${name}!`, res.dup ? 'blue' : 'gold', 3000);
-      G.onOwnedChanged();
-      st.redraw();
+      st.busy = true;
+      const body = st.body;
+      body.innerHTML = '';
+      const stage = h(`<div class="cs-stage" style="--cc:${c.color};--cd:${c.dark}">
+        <div class="cs-spot"></div>
+        <div class="cs-chest">${chestArt(c, 190)}</div>
+        <div class="cs-flash"></div>
+        <div class="reel hidden"><div class="reel-strip"></div><div class="reel-mark"></div><div class="reel-fade l"></div><div class="reel-fade r"></div></div>
+        <div class="cs-reveal hidden"></div>
+      </div>`);
+      body.appendChild(stage);
+      const chestEl = stage.querySelector('.cs-chest');
+      // 1) shake + rumble ticks
+      chestEl.classList.add('shake');
+      let n = 0;
+      const rumble = setInterval(() => { Audio.tick(); if (++n > 8) clearInterval(rumble); }, 95);
+      setTimeout(() => {
+        // 2) burst open
+        chestEl.classList.remove('shake');
+        chestEl.classList.add('open');
+        stage.querySelector('.cs-flash').classList.add('go');
+        Audio.boom();
+        setTimeout(() => spinReel(stage, c, res, st), 450);
+      }, 950);
+    }
+
+    function spinReel(stage, c, res, st) {
+      stage.querySelector('.cs-chest').classList.add('gone');
+      const reel = stage.querySelector('.reel');
+      const strip = stage.querySelector('.reel-strip');
+      reel.classList.remove('hidden');
+      // weighted filler items, winner placed near the end
+      const roll = () => { let r = Math.random() * 100; for (const [id, p] of c.drops) { r -= p; if (r <= 0) return id; } return c.drops[0][0]; };
+      const N = 60, WIN = 52;
+      const items = Array.from({ length: N }, (_, i) => (i === WIN ? res.skin : roll()));
+      // tease: put a rare-looking item right after the winner
+      items[WIN + 1] = c.drops[c.drops.length - 1][0];
+      strip.innerHTML = items.map((id, i) => skinCard(id, i === WIN ? 'win' : '')).join('');
+      const ITEM = 128; // card width + gap (matches CSS)
+      const view = reel.clientWidth;
+      const jitter = (Math.random() - 0.5) * (ITEM - 30);
+      const target = WIN * ITEM + ITEM / 2 - view / 2 + jitter;
+      strip.style.transform = 'translateX(0px)';
+      void strip.offsetWidth;
+      const dur = 5600;
+      strip.style.transition = `transform ${dur}ms cubic-bezier(0.06, 0.82, 0.12, 1)`;
+      strip.style.transform = `translateX(${-target}px)`;
+      // tick each time a card passes the marker
+      let last = -1, alive = true;
+      const mark = stage.querySelector('.reel-mark');
+      const loop = () => {
+        if (!alive) return;
+        const m = new DOMMatrixReadOnly(getComputedStyle(strip).transform);
+        const idx = Math.floor((-m.m41 + view / 2) / ITEM);
+        if (idx !== last) {
+          last = idx;
+          Audio.tick();
+          mark.classList.remove('bump'); void mark.offsetWidth; mark.classList.add('bump');
+        }
+        requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+      setTimeout(() => {
+        alive = false;
+        strip.querySelectorAll('.rl-item')[WIN].classList.add('landed');
+        setTimeout(() => reveal(stage, c, res, st), 700);
+      }, dur + 150);
+    }
+
+    function reveal(stage, c, res, st) {
+      const sk = SKIN_MAP[res.skin];
+      const R = rar(res.skin);
+      const big = sk.rarity === 'legendary' || sk.rarity === 'mythic';
+      stage.querySelector('.reel').classList.add('dim');
+      const rv = stage.querySelector('.cs-reveal');
+      rv.style.setProperty('--rc', R.color);
+      rv.style.setProperty('--rd', R.dark);
+      rv.innerHTML = `<div class="rv-rays"></div>
+        <div class="rv-rarity lbl" style="--o:${R.dark}">${R.name}</div>
+        <div class="rv-skin"><img src="${skinPreview(res.skin, 160)}" alt=""></div>
+        <div class="rv-name lbl" style="--o:${R.dark}">${sk.name}</div>
+        <div class="rv-msg lbl ${res.dup ? 'dup' : 'new'}">${res.dup ? `Duplicate! +${fmtFull(res.refund)} Gems` : 'NEW SKIN!'}</div>
+        <div class="row center rv-btns">
+          ${res.dup ? '' : '<button class="btn green" data-a="equip">Equip</button>'}
+          <button class="btn" data-a="again">${ic('chest', 22)} Open Again</button>
+          <button class="btn gray" data-a="back">Back</button>
+        </div>`;
+      rv.classList.remove('hidden');
+      if (big) { Audio.level(); confetti(stage, 90); SDK.happytime(); } else { Audio.reward(); confetti(stage, 30); }
+      G.onSkinChanged && profile.d.skin;
+      rv.querySelector('[data-a="back"]').onclick = () => { st.busy = false; st.redraw(); };
+      rv.querySelector('[data-a="again"]').onclick = () => { st.busy = false; st.redraw(); start(c, false, st); };
+      const eq = rv.querySelector('[data-a="equip"]');
+      if (eq) eq.onclick = () => { profile.equipSkin(res.skin); G.onSkinChanged(); G.hud.toast(`${sk.name} equipped!`, 'gold'); eq.disabled = true; eq.textContent = 'Equipped'; };
+    }
+
+    function confetti(stage, n) {
+      const cols = ['#ff3b6b', '#ffd21f', '#3aa9ff', '#5be37a', '#b14cf0', '#ff9a2e'];
+      for (let i = 0; i < n; i++) {
+        const p = document.createElement('i');
+        p.className = 'cf';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.background = cols[i % cols.length];
+        p.style.animationDelay = Math.random() * 0.4 + 's';
+        p.style.animationDuration = 1.6 + Math.random() * 1.2 + 's';
+        p.style.setProperty('--dx', (Math.random() - 0.5) * 160 + 'px');
+        p.style.setProperty('--rot', Math.random() * 720 + 'deg');
+        stage.appendChild(p);
+        setTimeout(() => p.remove(), 3400);
+      }
     }
   }
 
@@ -576,10 +712,11 @@ export function createMenus(G) {
         for (const s of SKINS) {
           const owned = profile.ownsSkin(s.id);
           const eq = profile.d.skin === s.id;
-          const price = s.price < 0 ? 'Event quest' : `${ic('gem', 20)} ${fmt(s.price)}`;
+          const price = s.price === -2 ? 'From chests' : s.price < 0 ? 'Event quest' : `${ic('gem', 20)} ${fmt(s.price)}`;
           const c = h(`<div class="card ${eq ? 'sel' : ''}"><img src="${skinPreview(s.id, 64)}"><div>${s.name}</div><div class="${owned ? 'owned' : 'price'}">${eq ? 'Equipped' : owned ? 'Equip' : price}</div></div>`);
           c.addEventListener('click', () => {
             if (owned) { profile.equipSkin(s.id); G.onSkinChanged(); Audio.click(); st.redraw(); return; }
+            if (s.price === -2) { G.hud.toast('Find this skin in Chests!', 'red'); return; }
             if (s.price < 0) { G.hud.toast('Complete the Event quest to unlock!', 'red'); return; }
             confirm(`Buy <b>${s.name}</b> skin for ${ic('gem', 20)} ${fmtFull(s.price)}?`, () => {
               if (!profile.spend(s.price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); skinShop(); return; }
@@ -731,6 +868,6 @@ export function createMenus(G) {
     open(name, ...args) { if (table[name]) table[name](...args); },
     close,
     get isOpen() { return !!current; },
-    refresh() { if (current && current.redraw && !current.el.querySelector('input:focus')) current.redraw(); },
+    refresh() { if (current && current.redraw && !current.busy && !current.el.querySelector('input:focus')) current.redraw(); },
   };
 }
