@@ -67,7 +67,7 @@ export class Lobby {
     if (m > 1) { mx /= m; mz /= m; }
     const p = this.pos;
     const sp = 20;
-    const k = Math.min(1, 7 * dt);
+    const k = Math.min(1, 18 * dt);
     p.vx += (mx * sp - p.vx) * k;
     p.vz += (mz * sp - p.vz) * k;
     p.x += p.vx * dt;

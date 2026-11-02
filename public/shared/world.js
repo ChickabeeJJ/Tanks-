@@ -1,6 +1,6 @@
 // Authoritative game simulation. Runs on the Node server (multiplayer) and in the
 // browser (offline fallback). Pure JS, no DOM / Node APIs.
-import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME } from './config.js';
+import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME, MOVE_ACCEL } from './config.js';
 import { TANKS, getTank, derived, canUse, upgradeOptions } from './tanks.js';
 import { addXp, statPointsForLevel, MAX_LEVEL } from './progression.js';
 import { botName, botLevel } from './names.js';
@@ -508,13 +508,13 @@ export class World {
         continue;
       }
       if (t.isBot) this.botThink(t);
-      else if (this.time - (t.lastInputAt || 0) > 0.5) {
+      else if (this.time - (t.lastInputAt || 0) > 1.5) {
         // no input for a while (tab hidden, lag spike): stop instead of drifting on the last input
         t.input.mx = 0; t.input.mz = 0; t.input.fire = false;
       }
       const slow = now < t.slowUntil ? 0.55 : 1;
       const sp = t.d.speed * slow;
-      const k = Math.min(1, 7 * DT);
+      const k = Math.min(1, MOVE_ACCEL * DT);
       t.vx += (t.input.mx * sp - t.vx) * k;
       t.vz += (t.input.mz * sp - t.vz) * k;
       t.x += t.vx * DT;
@@ -923,7 +923,7 @@ export class World {
 
 // Shared movement integrator used by client-side prediction (mirrors World.step).
 export function predictMove(p, mx, mz, speed, half, r, dt) {
-  const k = Math.min(1, 7 * dt);
+  const k = Math.min(1, MOVE_ACCEL * dt);
   p.vx += (mx * speed - p.vx) * k;
   p.vz += (mz * speed - p.vz) * k;
   p.x += p.vx * dt;

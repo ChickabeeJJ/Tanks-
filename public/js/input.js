@@ -41,8 +41,9 @@ export const Input = {
     window.addEventListener('blur', release);
     document.addEventListener('visibilitychange', release);
     document.addEventListener('focusin', (e) => { if (isTyping(e)) release(); });
-    // right-click menus anywhere (not just on the 3D view) steal key events
-    window.addEventListener('contextmenu', (e) => { e.preventDefault(); this.keys.clear(); });
+    // block the browser's right-click menu everywhere (right-drag rotates the camera, like Roblox).
+    // The menu never opens, so held keys stay held.
+    window.addEventListener('contextmenu', (e) => e.preventDefault());
 
     canvas.addEventListener('mousedown', (e) => {
       if (e.button === 0) this.mouse.down = true;
@@ -86,8 +87,6 @@ export const Input = {
 
   // move vector in camera space: {f: forward, r: right}
   moveAxes() {
-    // safety net: if the page lost focus without a blur event, nothing can be held
-    if (this.keys.size && typeof document.hasFocus === 'function' && !document.hasFocus()) this.releaseAll();
     let f = 0, r = 0;
     if (this.down('KeyW', 'ArrowUp')) f += 1;
     if (this.down('KeyS', 'ArrowDown')) f -= 1;

@@ -46,5 +46,8 @@ export const MAX_CAP = 15;
 export const BULLET_KINDS = ['bullet', 'flame', 'freeze', 'rail', 'blast', 'split', 'orbit'];
 export const FX = { POP: 0, BLAST: 1, HIT: 2, DEATH: 3, LEVEL: 4 };
 
+// Movement response (per second). High = Roblox-like: near-instant start and stop, no ice-skating.
+export const MOVE_ACCEL = 18;
+
 export const SPAWN_SHIELD = 30; // seconds of spawn protection
 export const COMBAT_TIME = 10; // seconds after being hit by a tank that you count as 'in combat'
