@@ -3,50 +3,166 @@ import * as THREE from '../../vendor/three.module.min.js';
 import { gridTexture, stripeTexture, skyTexture, textSprite, textCanvas } from './textures.js';
 import { TEAM_COLORS } from '../../shared/config.js';
 import { buildTank } from './models.js';
+import { Post } from './post.js';
 
 export function createRenderer(canvas, quality = 'high') {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality === 'high', powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality === 'high' ? 2 : 1));
+  const high = quality === 'high';
+  // MSAA happens in the post-processing buffer, so the canvas itself needs no antialias when post is on.
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: !high, powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, high ? 1.75 : 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  // Roblox-style look: no filmic tone mapping (it washes out colour), bright sun + sky fill.
-  renderer.toneMapping = THREE.NoToneMapping;
-  renderer.shadowMap.enabled = quality === 'high';
+  renderer.toneMapping = THREE.NoToneMapping; // grading happens in post (keeps colours vivid)
+  renderer.shadowMap.enabled = high;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = skyTexture();
-  scene.fog = new THREE.Fog(0xe4f3ff, 150, 380);
+  scene.fog = new THREE.Fog(0xdcefff, 120, 360);
 
-  const hemi = new THREE.HemisphereLight(0xffffff, 0xbfd4ee, 1.05);
+  // image-based lighting from the sky: soft reflections + natural fill
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envScene = new THREE.Scene();
+  envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: skyTexture(), color: 0x8a8a8a, side: THREE.BackSide })));
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(48, 32), new THREE.MeshBasicMaterial({ color: 0x80848a }));
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -6;
+  envScene.add(ground);
+  const sunBlob = new THREE.Mesh(new THREE.SphereGeometry(5, 16, 8), new THREE.MeshBasicMaterial({ color: 0xffe2b0 }));
+  sunBlob.position.set(30, 26, 18);
+  envScene.add(sunBlob);
+  scene.environment = pmrem.fromScene(envScene, 0.02).texture;
+
+  const hemi = new THREE.HemisphereLight(0xe3f1ff, 0xd9c7ae, 0.75); // cool sky, warm ground bounce
   scene.add(hemi);
-  const amb = new THREE.AmbientLight(0xffffff, 0.35);
+  const amb = new THREE.AmbientLight(0xffffff, 0.12);
   scene.add(amb);
-  const sun = new THREE.DirectionalLight(0xfff6e8, 1.75);
-  sun.position.set(30, 70, 25);
-  sun.castShadow = quality === 'high';
+  const sun = new THREE.DirectionalLight(0xffe9cc, 2.35); // warm, lower "golden" sun for longer shadows
+  sun.position.set(55, 48, 32);
+  sun.castShadow = high;
   sun.shadow.mapSize.set(2048, 2048);
-  sun.shadow.radius = 4;
+  sun.shadow.radius = 5;
   const sc = sun.shadow.camera;
-  sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70; sc.near = 1; sc.far = 220;
-  sun.shadow.bias = -0.0008;
-  sun.shadow.normalBias = 0.02;
+  sc.left = -75; sc.right = 75; sc.top = 75; sc.bottom = -75; sc.near = 1; sc.far = 260;
+  sun.shadow.bias = -0.0006;
+  sun.shadow.normalBias = 0.03;
   scene.add(sun);
   scene.add(sun.target);
+  const rim = new THREE.DirectionalLight(0xbfe0ff, 0.45); // cool back light for silhouettes
+  rim.position.set(-40, 30, -50);
+  scene.add(rim);
 
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 600);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 700);
+  const ambience = createAmbience(scene);
+  const post = high ? new Post(renderer) : null;
 
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setSize(w, h, false);
     camera.aspect = w / h;
-    // keep horizontal view reasonable on portrait phones
     camera.fov = w < h ? 75 : 60;
     camera.updateProjectionMatrix();
+    if (post) post.setSize(w, h);
   }
   window.addEventListener('resize', resize);
   resize();
 
-  return { renderer, scene, camera, sun, hemi, resize };
+  function render(dt) {
+    ambience.update(dt, camera);
+    if (post) post.render(scene, camera, dt);
+    else renderer.render(scene, camera);
+  }
+
+  return { renderer, scene, camera, sun, hemi, resize, render };
+}
+
+export const SUN_OFFSET = [55, 48, 32];
+export function placeSun(sun, x, z) {
+  sun.position.set(x + SUN_OFFSET[0], SUN_OFFSET[1], z + SUN_OFFSET[2]);
+  sun.target.position.set(x, 0, z);
+}
+
+// Ambience: drifting light motes around the camera + soft clouds on the horizon.
+function softDot() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gr.addColorStop(0, 'rgba(255,255,255,1)');
+  gr.addColorStop(0.35, 'rgba(255,248,230,.55)');
+  gr.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = gr;
+  g.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function cloudTex() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 128;
+  const g = c.getContext('2d');
+  for (let i = 0; i < 14; i++) {
+    const x = 40 + Math.random() * 176, y = 60 + (Math.random() - 0.5) * 30, r = 22 + Math.random() * 30;
+    const gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, 'rgba(255,255,255,.9)');
+    gr.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = gr;
+    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function createAmbience(scene) {
+  const N = 260, R = 45;
+  const pos = new Float32Array(N * 3);
+  const seed = [];
+  for (let i = 0; i < N; i++) {
+    pos[i * 3] = (Math.random() * 2 - 1) * R;
+    pos[i * 3 + 1] = 1 + Math.random() * 16;
+    pos[i * 3 + 2] = (Math.random() * 2 - 1) * R;
+    seed.push(Math.random() * 6.28);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const motes = new THREE.Points(geo, new THREE.PointsMaterial({
+    map: softDot(), size: 0.32, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending, color: 0xfff3d6, fog: true,
+  }));
+  motes.frustumCulled = false;
+  scene.add(motes);
+  const clouds = new THREE.Group();
+  const ct = cloudTex();
+  for (let i = 0; i < 14; i++) {
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: ct, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
+    const a = (i / 14) * Math.PI * 2 + Math.random() * 0.3;
+    s.position.set(Math.cos(a) * 420, 60 + Math.random() * 50, Math.sin(a) * 420);
+    s.scale.set(180 + Math.random() * 120, 70 + Math.random() * 40, 1);
+    clouds.add(s);
+  }
+  scene.add(clouds);
+  let t = 0;
+  const center = new THREE.Vector3();
+  return {
+    update(dt, camera) {
+      t += dt;
+      center.copy(camera.position);
+      clouds.position.set(center.x, 0, center.z);
+      clouds.rotation.y = t * 0.004;
+      const p = geo.attributes.position.array;
+      for (let i = 0; i < N; i++) {
+        let x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2];
+        y += dt * 0.35;
+        x += Math.sin(t * 0.4 + seed[i]) * dt * 0.4;
+        z += Math.cos(t * 0.3 + seed[i]) * dt * 0.4;
+        if (y > 18) y = 3;
+        // keep motes in a box around the camera (wrap)
+        const dx = x - center.x, dz = z - center.z;
+        if (dx > R) x -= 2 * R; else if (dx < -R) x += 2 * R;
+        if (dz > R) z -= 2 * R; else if (dz < -R) z += 2 * R;
+        p[i * 3] = x; p[i * 3 + 1] = y; p[i * 3 + 2] = z;
+      }
+      geo.attributes.position.needsUpdate = true;
+    },
+  };
 }
 
 // Third-person orbit camera (Roblox style). yaw 0 = looking toward -z.
@@ -217,14 +333,45 @@ export function buildLobby(skinId) {
   floor.receiveShadow = true;
   root.add(floor);
 
-  // striped back walls
-  // flat brushed-metal walls
-  const wallMat = new THREE.MeshStandardMaterial({ color: 0xc9d4e0, metalness: 0.22, roughness: 0.38, emissive: 0x7d8a99, emissiveIntensity: 0.18 });
-  for (const [x, z, ry] of [[0, -H - 6, 0], [0, H + 14, Math.PI], [-H - 6, 0, Math.PI / 2], [H + 6, 0, -Math.PI / 2]]) {
-    const w = new THREE.Mesh(new THREE.PlaneGeometry(H * 2 + 40, 26), wallMat);
-    w.position.set(x, 13, z);
-    w.rotation.y = ry;
-    root.add(w);
+  // lobby walls: white panels on a metal base, metal pillars with glowing strips, capped top
+  {
+    const W = H + 4;
+    const panelM = new THREE.MeshStandardMaterial({ color: 0xf4f8fc, roughness: 0.6, metalness: 0.0, emissive: 0xdfe9f4, emissiveIntensity: 0.32 });
+    const baseM = new THREE.MeshStandardMaterial({ color: 0x8ea4bd, roughness: 0.35, metalness: 0.6 });
+    const capM = new THREE.MeshStandardMaterial({ color: 0xb7c7d9, roughness: 0.3, metalness: 0.55 });
+    const pillarM = new THREE.MeshStandardMaterial({ color: 0xcfdae6, roughness: 0.28, metalness: 0.5 });
+    const glowM = new THREE.MeshBasicMaterial({ color: 0x8fe3ff });
+    const add = (geo, mat, x, y, z, ry = 0, shadow = true) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x, y, z);
+      m.rotation.y = ry;
+      m.castShadow = shadow;
+      m.receiveShadow = true;
+      root.add(m);
+      return m;
+    };
+    const L = W * 2;
+    for (const [cx, cz, ry] of [[0, -W, 0], [0, W, Math.PI], [-W, 0, Math.PI / 2], [W, 0, -Math.PI / 2]]) {
+      add(new THREE.BoxGeometry(L, 1.4, 3), baseM, cx, 0.7, cz, ry);
+      add(new THREE.BoxGeometry(L, 8, 2), panelM, cx, 5, cz, ry);
+      add(new THREE.BoxGeometry(L + 2, 0.9, 3.2), capM, cx, 9.4, cz, ry);
+      // light line under the cap, facing inward
+      const ln = add(new THREE.BoxGeometry(L, 0.25, 0.2), glowM, cx, 8.7, cz, ry, false);
+      ln.translateZ(1.1);
+      // pillars with vertical glow strips
+      for (let k = -W + 8; k <= W - 8; k += 12) {
+        const pl = add(new THREE.BoxGeometry(2.6, 10.6, 3.4), pillarM, cx, 5.3, cz, ry);
+        pl.translateX(k);
+        const gs = add(new THREE.BoxGeometry(0.45, 7.5, 0.2), glowM, cx, 5.4, cz, ry, false);
+        gs.translateX(k);
+        gs.translateZ(1.8);
+      }
+    }
+    // corner towers
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+      add(new THREE.BoxGeometry(5, 13, 5), capM, sx * W, 6.5, sz * W);
+      add(new THREE.BoxGeometry(5.6, 0.8, 5.6), glowM, sx * W, 13.2, sz * W, 0, false);
+    }
   }
 
   const anim = [];
@@ -275,13 +422,17 @@ export function buildLobby(skinId) {
         seg.position.set(-2.6 + i * 1.3, 2.2, 0);
         model.add(seg);
       }
-      anim.push((t) => { model.rotation.y = Math.sin(t) * 0.3; });
+      anim.push((t) => { model.rotation.y = Math.atan2(-p.x, -p.z) + Math.sin(t) * 0.3; });
     } else if (p.id === 'tanks') {
       const tk = buildTank('fourdouble', 'default');
       model = tk.group;
       anim.push((t) => { tk.rot.rotation.y = -t * 0.6; });
     }
-    if (model) { model.scale.multiplyScalar(1.45); g.add(model); }
+    if (model) {
+      model.scale.multiplyScalar(1.45);
+      model.rotation.y = Math.atan2(-p.x, -p.z); // face the lobby centre
+      g.add(model);
+    }
     const label = textSprite(p.label, { size: 56, bg: 'rgba(110,122,140,0.85)', height: 2.8 });
     label.position.set(0, 9.5, 0);
     g.add(label);

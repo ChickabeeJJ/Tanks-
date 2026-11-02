@@ -31,14 +31,14 @@ export const SHAPE_LIST = ['cube', 'bcube', 'pent', 'hex', 'alpha'];
 
 // The 8 upgradeable stats (order matches number keys 1-8).
 export const STATS = [
-  { key: 'dmg', name: 'Damage', color: '#ff4d5e', icon: '🗡️' },
-  { key: 'pen', name: 'Bullet Health', color: '#ffc93c', icon: '🔫' },
-  { key: 'bspd', name: 'Bullet Speed', color: '#3f9bf5', icon: '🚀' },
-  { key: 'rel', name: 'Fire Rate', color: '#3fd65a', icon: '🔄' },
-  { key: 'mhp', name: 'Max Health', color: '#c43cf0', icon: '❤️' },
-  { key: 'regen', name: 'Health Regen', color: '#ef4fae', icon: '💗' },
-  { key: 'spd', name: 'Tank Speed', color: '#ff8a2b', icon: '👟' },
-  { key: 'body', name: 'Body Damage', color: '#2ec3d6', icon: '⚙️' },
+  { key: 'dmg', name: 'Damage', color: '#f0323f', icon: '' },
+  { key: 'pen', name: 'Bullet Health', color: '#f6c21a', icon: '' },
+  { key: 'bspd', name: 'Bullet Speed', color: '#2b8ef5', icon: '' },
+  { key: 'rel', name: 'Fire Rate', color: '#3fd34a', icon: '' },
+  { key: 'mhp', name: 'Max Health', color: '#c03ae6', icon: '' },
+  { key: 'regen', name: 'Health Regen', color: '#ee4ec2', icon: '' },
+  { key: 'spd', name: 'Tank Speed', color: '#ff8a1c', icon: '' },
+  { key: 'body', name: 'Body Damage', color: '#1fb3d8', icon: '' },
 ];
 export const BASE_CAP = 8;
 export const MAX_CAP = 15;

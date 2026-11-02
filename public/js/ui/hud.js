@@ -17,7 +17,7 @@ export function createHUD(G) {
     <input class="hidden" maxlength="80" placeholder="Type a message, Enter to send">
   </div>
   <div id="topbar">
-    <div class="rbtn sq qe arena-only" id="qbtn" title="Tank upgrades (Q)"><img class="tico" alt=""><span class="key">Q</span><span class="badge hidden"></span></div>
+    <div class="rbtn sq qe arena-only" id="qbtn" title="Tank upgrades (Q)"><img class="tico" alt=""><span class="kl lbl">Q</span><span class="badge br hidden"></span></div>
     <div id="xpwrap">
       <div id="xpbar">
         <div class="track"><div class="fill"><div class="gloss"></div><div class="shine"></div></div></div>
@@ -26,7 +26,7 @@ export function createHUD(G) {
       </div>
       <div id="lvl" class="lbl"></div>
     </div>
-    <div class="rbtn sq qe green arena-only" id="ebtn" title="Stat upgrades (E)">${ic('chevrons', 34)}<span class="key">E</span><span class="badge hidden"></span></div>
+    <div class="rbtn sq qe teal arena-only" id="ebtn" title="Stat upgrades (E)">${ic('statup', 40)}<span class="kl lbl">E</span><span class="badge br hidden"></span></div>
     <div id="xpgain"></div>
   </div>
   <div id="qpanel" class="hidden"></div>
@@ -182,8 +182,8 @@ export function createHUD(G) {
 
     // ---------------- Q (tank upgrades)
     toggleQ() { if (this.mode !== 'arena') return; this.qOpen ? this.closeQ() : this.openQ(); },
-    openQ() { this.qOpen = true; this.closeE(); els.q.classList.remove('hidden'); this._qKey = ''; G.arena && G.arena.refreshQ(); },
-    closeQ() { this.qOpen = false; els.q.classList.add('hidden'); },
+    openQ() { this.qOpen = true; this.closeE(); els.q.classList.remove('hidden'); $('#topbar', root).classList.add('mode-q'); this._qKey = ''; G.arena && G.arena.refreshQ(); },
+    closeQ() { this.qOpen = false; els.q.classList.add('hidden'); $('#topbar', root).classList.remove('mode-q'); },
     renderQ(opts) {
       badge(els.qBadge, opts.filter((o) => o.usable).length);
       if (!this.qOpen) return;
@@ -207,8 +207,8 @@ export function createHUD(G) {
 
     // ---------------- E (stats)
     toggleE() { if (this.mode !== 'arena') return; this.eOpen ? this.closeE() : this.openE(); },
-    openE() { this.eOpen = true; this.closeQ(); els.e.classList.remove('hidden'); this._eKey = ''; G.arena && G.arena.refreshE(); },
-    closeE() { this.eOpen = false; els.e.classList.add('hidden'); },
+    openE() { this.eOpen = true; this.closeQ(); els.e.classList.remove('hidden'); $('#topbar', root).classList.add('mode-e'); this._eKey = ''; G.arena && G.arena.refreshE(); },
+    closeE() { this.eOpen = false; els.e.classList.add('hidden'); $('#topbar', root).classList.remove('mode-e'); },
     renderE(me) {
       badge(els.eBadge, me ? me.sp : 0);
       if (!this.eOpen || !me) return;
@@ -223,7 +223,7 @@ export function createHUD(G) {
         row.className = 'stat' + (maxed ? ' maxed' : '');
         const capBtn = maxed ? `<div class="cap" title="Raise the cap in the Upgrades Shop">${ic('gem', 20)}</div>` : '';
         const left = i % 2 === 0;
-        row.innerHTML = `${left ? capBtn : ''}<div class="sb" style="--c:${s.color}">${ic(STAT_ICONS[i], 22)}<span class="lbl">${s.name}</span><span class="k">${i + 1}</span></div><div class="val lbl" style="--c:${s.color}">${me.st[i]}</div>${left ? '' : capBtn}`;
+        row.innerHTML = `${left ? capBtn : ''}<div class="sb" style="--c:${s.color}">${ic(STAT_ICONS[i], 30)}<span class="lbl">${s.name}</span><span class="k">${i + 1}</span></div><div class="val lbl" style="--c:${s.color}">${me.st[i]}</div>${left ? '' : capBtn}`;
         row.querySelector('.sb').addEventListener('click', () => G.arena && G.arena.statUp(i));
         const cb = row.querySelector('.cap');
         if (cb) cb.addEventListener('click', () => G.menus.open('upgrades'));

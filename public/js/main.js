@@ -195,7 +195,7 @@ async function boot() {
     }
     if (G.state === 'arena' && G.arena) G.arena.update(dt);
     else if (G.state === 'lobby' && G.lobby) G.lobby.update(dt);
-    G.renderer.render(G.scene, G.camera);
+    G.render(dt);
   }
   requestAnimationFrame(frame);
 }

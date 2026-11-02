@@ -1,5 +1,6 @@
 // Arena: connects (online or offline), renders snapshots, predicts the local tank.
 import * as THREE from '../vendor/three.module.min.js';
+import { placeSun } from './render/scene.js';
 import { DT, SHAPE_LIST, SHAPES, MODES, FX, TEAM_COLORS, BULLET_KINDS } from '../shared/config.js';
 import { getTank, derived, childrenOf, canUse, TANKS } from '../shared/tanks.js';
 import { predictMove } from '../shared/world.js';
@@ -494,8 +495,7 @@ export class Arena {
     // camera follows
     const fov = d ? d.fov : 1;
     rig.update(dt, this.renderX(), this.renderZ(), fov);
-    G.sun.position.set(rig.cur.x + 30, 70, rig.cur.z + 25);
-    G.sun.target.position.set(rig.cur.x, 0, rig.cur.z);
+    placeSun(G.sun, rig.cur.x, rig.cur.z);
 
     // HUD at 8 Hz
     this.hudT -= dt;

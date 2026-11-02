@@ -1,5 +1,6 @@
 // Lobby hub: drive around, step on pads to open shops, drive into portals to play.
 import * as THREE from '../vendor/three.module.min.js';
+import { placeSun } from './render/scene.js';
 import { buildLobby, LOBBY } from './render/scene.js';
 import { buildTank, disposeTank } from './render/models.js';
 import { Input } from './input.js';
@@ -112,7 +113,6 @@ export class Lobby {
 
     for (const f of this.env.anim) f(this.t);
     rig.update(dt, p.x, p.z, 1);
-    G.sun.position.set(rig.cur.x + 30, 70, rig.cur.z + 25);
-    G.sun.target.position.set(rig.cur.x, 0, rig.cur.z);
+    placeSun(G.sun, rig.cur.x, rig.cur.z);
   }
 }
