@@ -53,5 +53,5 @@ export const MOVE_ACCEL = 18;
 export const ROOM_SIZE = 7;
 export const MAX_BOTS = 6;
 
-export const SPAWN_SHIELD = 30; // seconds of spawn protection
+export const SPAWN_SHIELD = 20; // seconds of spawn protection
 export const COMBAT_TIME = 10; // seconds after being hit by a tank that you count as 'in combat'

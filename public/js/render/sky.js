@@ -56,7 +56,7 @@ export function createSky(sunDir, linear) {
     vertexShader: VERT, fragmentShader: FRAG, side: THREE.BackSide, depthWrite: false, fog: false,
     uniforms: { uSun: { value: sunDir.clone().normalize() }, uTime: { value: 0 }, uLinear: { value: linear ? 1 : 0 } },
   });
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(500, 48, 24), mat);
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(1500, 48, 24), mat);
   mesh.frustumCulled = false;
   mesh.renderOrder = -10;
   return {

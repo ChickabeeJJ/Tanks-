@@ -6,7 +6,7 @@ import { STATS, BASE_CAP, MAX_CAP, MODES } from '../../shared/config.js';
 import { fmt, fmtFull } from '../../shared/progression.js';
 import { skinPreview } from '../render/textures.js';
 import { tankIcon } from '../render/thumbs.js';
-import { ic } from './icons.js';
+import { ic, STAT_ICONS } from './icons.js';
 import { SDK } from '../sdk.js';
 import { Audio } from '../audio.js';
 import { esc } from './hud.js';
@@ -141,10 +141,37 @@ export function createMenus(G) {
     });
   }
 
+  // reward icons burst out of an element and fly to a HUD counter
+  function flyRewards(fromEl, icon, targetSel, n = 10) {
+    const from = fromEl.getBoundingClientRect();
+    const tgt = document.querySelector(targetSel);
+    const to = tgt ? tgt.getBoundingClientRect() : { left: innerWidth / 2, top: 20, width: 0, height: 0 };
+    const fx = from.left + from.width / 2, fy = from.top + from.height / 2;
+    const tx = to.left + to.width / 2, ty = to.top + to.height / 2;
+    for (let k = 0; k < n; k++) {
+      const el = document.createElement('div');
+      el.className = 'flyer';
+      el.innerHTML = ic(icon, 34);
+      document.body.appendChild(el);
+      const ang = Math.random() * Math.PI * 2, rad = 50 + Math.random() * 60;
+      const mx = fx + Math.cos(ang) * rad, my = fy + Math.sin(ang) * rad;
+      const anim = el.animate([
+        { transform: `translate(${fx}px, ${fy}px) scale(.3)`, opacity: 0 },
+        { transform: `translate(${mx}px, ${my}px) scale(1.15)`, opacity: 1, offset: 0.35 },
+        { transform: `translate(${tx}px, ${ty}px) scale(.55)`, opacity: 0.9 },
+      ], { duration: 850 + k * 45, easing: 'cubic-bezier(.3,.1,.3,1)', fill: 'forwards' });
+      anim.onfinish = () => {
+        el.remove();
+        if (tgt) { tgt.classList.remove('gotit'); void tgt.offsetWidth; tgt.classList.add('gotit'); }
+        if (k % 3 === 0) Audio.tick();
+      };
+    }
+  }
+
   // ------------------------------------------------------------------ gifts (4x3 grid like the original)
   function gifts() {
     modal({
-      title: 'Gifts', icon: 'gift', tick: (st) => st.redraw(),
+      title: 'Gifts', icon: 'gift', tick: (st) => { if (Date.now() - (st.lastClaim || 0) > 800) st.redraw(); },
       render(b) {
         const el = profile.giftElapsed();
         const g = h('<div class="gifts"></div>');
@@ -160,8 +187,15 @@ export function createMenus(G) {
             ${!ready && !claimed ? `<span class="lk">${ic('lock', 30)}</span><span class="tm lbl">${timeLeft((gf.at - el) * 1000)}</span>` : ''}
             ${claimed ? `<span class="ck">${ic('check', 30)}</span>` : ''}</div>`);
           c.addEventListener('click', () => {
+            if (c.classList.contains('claiming')) return;
             const out = profile.claimGift(i);
-            if (out) { say(out); Audio.reward(); } else if (!claimed) { Audio.error(); G.hud.toast('Keep playing to unlock!', 'red'); }
+            if (out) {
+              c.classList.add('claiming');
+              current.lastClaim = Date.now();
+              flyRewards(c, isGem ? 'gem' : 'star', isGem ? '#gems' : '#xpbar');
+              say(out);
+              Audio.reward();
+            } else if (!claimed) { Audio.error(); G.hud.toast('Keep playing to unlock!', 'red'); c.classList.remove('nope'); void c.offsetWidth; c.classList.add('nope'); }
           });
           g.appendChild(c);
         });
@@ -794,48 +828,71 @@ export function createMenus(G) {
 
   // ------------------------------------------------------------------ upgrades shop
   function upgrades() {
+    let flash = null; // which card just got bought (for the pop animation)
     modal({
-      title: 'Upgrades Shop', icon: '⏫', wide: true,
+      title: 'Upgrades Shop', icon: 'statup', wide: true,
       render(b, st) {
         const d = profile.d;
-        const col = h('<div class="col"></div>');
-        STATS.forEach((s, i) => {
+        b.appendChild(h(`<div class="up-head"><div><div class="up-h1 lbl">Permanent upgrades</div><div class="muted">Raise your stat limits and boost every reward. Applies from your next match.</div></div>
+          <div class="up-bal">${ic('gem', 26)}<span class="lbl">${fmtFull(d.gems)}</span></div></div>`));
+        b.appendChild(h('<div class="up-sec lbl">Stat caps</div>'));
+        const grid = h('<div class="up-grid"></div>');
+        STATS.forEach((sDef, i) => {
           const cap = BASE_CAP + d.capUps[i];
           const maxed = cap >= MAX_CAP;
           const price = capPrice(d.capUps[i]);
-          const row = h(`<div class="box row between" style="padding:6px 10px"><div class="row"><div class="stroke-s" style="background:${s.color};color:#fff;border:2px solid #16233f;border-radius:8px;padding:3px 8px;width:150px">${s.icon} ${s.name}</div>
-            <div>Max: <b>${cap}</b>${maxed ? '' : ` &rarr; <b style="color:#22b947">${cap + 1}</b>`}</div></div>
-            <button class="btn ${maxed ? 'gray' : 'green'} stroke" style="font-size:16px" ${maxed ? 'disabled' : ''}>${maxed ? 'MAX' : `${ic('gem', 20)} ${fmt(price)}`}</button></div>`);
-          row.querySelector('button').onclick = () => {
-            if (maxed) return;
-            if (!profile.spend(price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); return; }
+          const afford = d.gems >= price;
+          const pips = Array.from({ length: MAX_CAP }, (_, k) => {
+            const cls = k < BASE_CAP ? 'base' : k < cap ? 'got' : k === cap ? 'next' : '';
+            return `<i class="${cls} ${flash === 'stat' + i && k === cap - 1 ? 'pop' : ''}"></i>`;
+          }).join('');
+          const card = h(`<div class="up-card ${flash === 'stat' + i ? 'bought' : ''}" style="--c:${sDef.color}">
+            <div class="up-icon">${ic(STAT_ICONS[i], 34)}</div>
+            <div class="up-mid"><div class="up-name lbl">${sDef.name}</div>
+              <div class="up-pips">${pips}</div>
+              <div class="up-sub">${maxed ? 'Fully upgraded' : `Max level <b>${cap}</b> &rarr; <b class="nx">${cap + 1}</b>`}</div></div>
+            ${maxed ? '<div class="up-max lbl">MAX</div>' : `<button class="btn ${afford ? 'green' : 'gray'} up-buy">${ic('gem', 20)} ${fmt(price)}</button>`}</div>`);
+          const buy = card.querySelector('.up-buy');
+          if (buy) buy.onclick = () => {
+            if (!profile.spend(price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); card.classList.remove('nope'); void card.offsetWidth; card.classList.add('nope'); return; }
             d.capUps[i]++;
             profile.emit('caps');
-            G.hud.toast(`${s.name} cap is now ${cap + 1}!`, 'gold');
+            flash = 'stat' + i;
+            G.hud.toast(`${sDef.name} max is now ${cap + 1}!`, 'gold');
             Audio.reward();
             st.redraw();
           };
-          col.appendChild(row);
+          grid.appendChild(card);
         });
-        for (const [key, label, icon] of [['xpBoost', 'XP Boost', 'star'], ['gemBoost', 'Gem Boost', 'gem']]) {
+        b.appendChild(grid);
+        b.appendChild(h('<div class="up-sec lbl">Boosts</div>'));
+        const boosts = h('<div class="up-boosts"></div>');
+        for (const [key, label, icon, col] of [['xpBoost', 'XP Boost', 'star', '#ffb31a'], ['gemBoost', 'Gem Boost', 'gem', '#25b8f0']]) {
           const lv = d[key];
           const maxed = lv >= 5;
           const price = boostPrice(lv);
-          const row = h(`<div class="box row between" style="padding:6px 10px"><div class="row"><div class="stroke-s" style="background:#ffb31a;color:#fff;border:2px solid #16233f;border-radius:8px;padding:3px 8px;width:150px">${ic(icon, 20)} ${label}</div>
-            <div>+${lv * 10}%${maxed ? '' : ` &rarr; <b style="color:#22b947">+${(lv + 1) * 10}%</b>`}</div></div>
-            <button class="btn ${maxed ? 'gray' : 'green'} stroke" style="font-size:16px" ${maxed ? 'disabled' : ''}>${maxed ? 'MAX' : `${ic('gem', 20)} ${fmt(price)}`}</button></div>`);
-          row.querySelector('button').onclick = () => {
-            if (maxed) return;
-            if (!profile.spend(price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); return; }
+          const afford = d.gems >= price;
+          const card = h(`<div class="up-boost ${flash === key ? 'bought' : ''}" style="--c:${col}">
+            <div class="ub-icon">${ic(icon, 54)}</div>
+            <div class="ub-mid"><div class="up-name lbl">${label}</div>
+              <div class="ub-pct lbl">+${lv * 10}%${maxed ? '' : ` <span>&rarr; +${(lv + 1) * 10}%</span>`}</div>
+              <div class="up-pips five">${Array.from({ length: 5 }, (_, k) => `<i class="${k < lv ? 'got' : k === lv ? 'next' : ''} ${flash === key && k === lv - 1 ? 'pop' : ''}"></i>`).join('')}</div>
+              <div class="up-sub">${key === 'xpBoost' ? 'More XP from everything' : 'More gems from shapes and kills'}</div></div>
+            ${maxed ? '<div class="up-max lbl">MAX</div>' : `<button class="btn ${afford ? 'green' : 'gray'} up-buy">${ic('gem', 20)} ${fmt(price)}</button>`}</div>`);
+          const buy = card.querySelector('.up-buy');
+          if (buy) buy.onclick = () => {
+            if (!profile.spend(price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); card.classList.remove('nope'); void card.offsetWidth; card.classList.add('nope'); return; }
             d[key]++;
             profile.emit('boost');
+            flash = key;
+            G.hud.toast(`${label} is now +${(lv + 1) * 10}%!`, 'gold');
             Audio.reward();
             st.redraw();
           };
-          col.appendChild(row);
+          boosts.appendChild(card);
         }
-        b.appendChild(h('<div class="muted center" style="margin-bottom:6px">New stat caps and boosts apply from your next match.</div>'));
-        b.appendChild(col);
+        b.appendChild(boosts);
+        flash = null;
       },
     });
   }
@@ -846,23 +903,72 @@ export function createMenus(G) {
       title: 'Settings', icon: 'gear',
       render(b) {
         const s = profile.d.settings;
+        const signedIn = profile.d.name && profile.d.name !== 'Guest';
         const el = h(`<div class="col">
-          <label class="row between box"><b>Name</b><input id="st-name" maxlength="16" value="${esc(profile.d.name)}" style="font-family:inherit;font-size:16px;border:2px solid #8cc8ea;border-radius:8px;padding:4px 8px"></label>
+          <div class="row between box"><b>Name</b><span class="st-name">${esc(profile.d.name || 'Guest')}</span></div>
+          <div class="muted" style="margin:-4px 4px 0;text-align:right">${signedIn ? 'Your CrazyGames username' : 'Sign in on CrazyGames to use your username'}</div>
           <label class="row between box"><b>Sound</b><input id="st-sfx" type="range" min="0" max="1" step="0.05" value="${s.sfx}"></label>
           <label class="row between box"><b>Camera sensitivity</b><input id="st-sens" type="range" min="0.3" max="2.5" step="0.1" value="${s.sens}"></label>
           <label class="row between box"><b>Graphics</b><select id="st-q" style="font-family:inherit;font-size:16px"><option value="high">High</option><option value="low">Low (faster)</option></select></label>
           <label class="row between box"><b>Show names</b><input id="st-names" type="checkbox" ${s.names ? 'checked' : ''}></label>
           <div class="box muted">Controls: WASD move · Mouse aim · Click/Space shoot · Right-drag rotate camera · Scroll zoom · Q tank upgrades · E stats (1-8) · F auto fire · R auto spin · C turn 180° · Shift lock camera · Enter chat · X index · G gifts</div>
-          <div class="muted center">Mode: ${G.netLabel()}</div></div>`);
+          <div class="row center"><button class="btn" id="st-pp">Privacy Policy</button><button class="btn" id="st-tos">Terms of Use</button></div></div>`);
         el.querySelector('#st-q').value = s.quality;
-        const nm = el.querySelector('#st-name');
-        nm.addEventListener('keydown', (e) => e.stopPropagation());
-        nm.addEventListener('change', () => { profile.d.name = nm.value.replace(/[^\w .-]/g, '').slice(0, 16); profile.save(); });
         el.querySelector('#st-sfx').addEventListener('input', (e) => { s.sfx = +e.target.value; Audio.setVolume(s.sfx); profile.save(); });
         el.querySelector('#st-sens').addEventListener('input', (e) => { s.sens = +e.target.value; profile.save(); });
         el.querySelector('#st-names').addEventListener('change', (e) => { s.names = e.target.checked; profile.save(); });
         el.querySelector('#st-q').addEventListener('change', (e) => { s.quality = e.target.value; profile.save(); G.hud.toast('Graphics change applies after reload', 'blue'); });
+        el.querySelector('#st-pp').onclick = () => legal('privacy');
+        el.querySelector('#st-tos').onclick = () => legal('terms');
         b.appendChild(el);
+      },
+    });
+  }
+
+  // ------------------------------------------------------------------ privacy policy / terms (in-game, no external links)
+  const LEGAL = {
+    privacy: { title: 'Privacy Policy', html: `
+      <p class="muted">Last updated: November 2026</p>
+      <h4>What we store</h4>
+      <p>Your game progress (level, XP, gems, unlocked tanks and skins, quests and settings) is saved on your device and, when you play on CrazyGames, through the CrazyGames data service so it follows your CrazyGames account. We do not ask for your real name, email, location, contacts or payment details.</p>
+      <h4>Your name</h4>
+      <p>If you are signed in to CrazyGames, your CrazyGames username is shown to other players. Otherwise you appear as "Guest". You cannot type a custom name in the game.</p>
+      <h4>Multiplayer</h4>
+      <p>While you play online, our game server receives what it needs to run the match: your display name, level, equipped tank and skin, your controls (movement, aiming, shooting) and chat messages you choose to send. Chat is filtered for bad words and links and is not kept after the match. A random play ID may be kept in server memory to keep you in the same server; it is not linked to your identity.</p>
+      <h4>Advertising and tracking</h4>
+      <p>This version of the game shows no ads and contains no third-party analytics or tracking. The CrazyGames platform you play on has its own privacy policy, which applies to your use of CrazyGames.</p>
+      <h4>Children</h4>
+      <p>The game is suitable for all ages and does not knowingly collect personal information from children. Chat can be turned off through your CrazyGames settings.</p>
+      <h4>Deleting your data</h4>
+      <p>Clearing your browser data removes the local save. Data saved through CrazyGames can be removed through your CrazyGames account. Server-side match data is temporary and disappears when the server restarts.</p>
+      <h4>Contact</h4>
+      <p>For questions about privacy, contact us through the game's page on CrazyGames.</p>` },
+    terms: { title: 'Terms of Use', html: `
+      <p class="muted">Last updated: November 2026</p>
+      <h4>Playing the game</h4>
+      <p>The game is free to play. By playing you agree to these terms. If you do not agree, please do not play.</p>
+      <h4>Fair play</h4>
+      <p>Do not cheat, use hacks, bots or scripts, exploit bugs, or disrupt servers or other players. We may remove players who break these rules from a server.</p>
+      <h4>Chat and behaviour</h4>
+      <p>Be respectful. No bullying, hate speech, harassment, sharing personal information or links. Messages are filtered and chat may be disabled.</p>
+      <h4>Virtual items</h4>
+      <p>Gems, XP, tanks, skins and other in-game items have no real-world value, cannot be exchanged for money, and may be changed or rebalanced as the game is updated. Progress can be lost if your browser data is cleared and you are not signed in.</p>
+      <h4>Changes and availability</h4>
+      <p>We may update, change or stop the game or these terms at any time. Servers may restart, which ends the matches running on them.</p>
+      <h4>No warranty</h4>
+      <p>The game is provided "as is" without warranties. To the extent allowed by law, we are not liable for any loss arising from playing the game.</p>
+      <h4>Contact</h4>
+      <p>Questions? Contact us through the game's page on CrazyGames.</p>` },
+  };
+  function legal(which) {
+    const L = LEGAL[which];
+    modal({
+      title: L.title, icon: 'clipboard', wide: true,
+      render(b) {
+        b.appendChild(h(`<div class="legal">${L.html}</div>`));
+        const back = h('<div class="row center" style="margin-top:8px"><button class="btn">Back to Settings</button></div>');
+        back.querySelector('button').onclick = () => settings();
+        b.appendChild(back);
       },
     });
   }
@@ -883,19 +989,43 @@ export function createMenus(G) {
   }
 
   // ------------------------------------------------------------------ death / confirm
+  const TIPS = [
+    'Press E and put points into Max Health and Health Regen to survive longer.',
+    'Shapes near the middle of the map give the most XP.',
+    'Hide behind walls - bullets cannot pass through them.',
+    'Bullets cancel each other out. Use that to block incoming shots!',
+    'Press Q as soon as you level up to evolve into a stronger tank.',
+    'Leaving while in combat gives your attacker the kill.',
+    'Raise your stat caps in the Upgrades Shop in the lobby.',
+  ];
   function death(info, onRespawn, onLobby) {
+    // red flash + small screen shake as the screen opens
+    const fl = document.createElement('div');
+    fl.className = 'hurt-flash';
+    document.body.appendChild(fl);
+    setTimeout(() => fl.remove(), 900);
+    const killerTank = Object.values(TANKS).find((t) => t.name === info.byTank);
     modal({
       title: 'Destroyed', icon: 'skull',
       onClose: () => { if (!info.handled) onRespawn(); },
-      render(b) {
-        const el = h(`<div class="death col">
-          <h2 class="stroke" style="color:#ff3b4f">You were destroyed!</h2>
-          <div class="big">by ${esc(info.by)}${info.byTank ? ` <span class="muted">(${esc(info.byTank)})</span>` : ''}</div>
-          <div class="row center" style="gap:20px;margin:8px 0">
-            <div class="box"><div class="muted">XP earned</div><div class="big">${ic('star', 20)} ${fmtFull(info.xp)}</div></div>
-            <div class="box"><div class="muted">Kills</div><div class="big">${ic('sword', 20)} ${info.kills}</div></div>
-            <div class="box"><div class="muted">Time alive</div><div class="big">${ic('clock', 20)} ${timeLeft(info.time * 1000)}</div></div></div>
-          <div class="row center"><button class="btn green stroke" id="d-re">Respawn</button><button class="btn yellow stroke" id="d-lobby">Lobby</button></div></div>`);
+      render(b, st) {
+        st.el.classList.add('death-modal');
+        const tip = TIPS[Math.floor(Math.random() * TIPS.length)];
+        const el = h(`<div class="dth">
+          <div class="dth-head"><div class="dth-title lbl">DESTROYED</div><div class="dth-sub">Better luck next time!</div></div>
+          <div class="dth-killer">
+            ${killerTank ? `<img src="${tankIcon(killerTank.id)}" alt="">` : `<div class="dth-noicon">${ic('skull', 56)}</div>`}
+            <div><div class="muted">Destroyed by</div><div class="dth-kname lbl">${esc(info.by)}</div>${info.byTank ? `<span class="dth-chip">${esc(info.byTank)}</span>` : ''}</div>
+          </div>
+          <div class="dth-stats">
+            <div class="dth-stat" style="--c:#ffb31a">${ic('star', 30)}<b class="lbl">${fmt(info.xp)}</b><span>XP earned</span></div>
+            <div class="dth-stat" style="--c:#f0323f">${ic('sword', 30)}<b class="lbl">${info.kills}</b><span>Kills</span></div>
+            <div class="dth-stat" style="--c:#2b8ef5">${ic('clock', 30)}<b class="lbl">${timeLeft(info.time * 1000)}</b><span>Time alive</span></div>
+            <div class="dth-stat" style="--c:#3fd34a">${ic('statup', 30)}<b class="lbl">${profile.level}</b><span>Your level</span></div>
+          </div>
+          <div class="dth-tip">${ic('book', 20)} <b>Tip:</b> ${tip}</div>
+          <div class="dth-btns"><button class="btn green" id="d-re">${ic('spin', 26)} Respawn</button><button class="btn" id="d-lobby">${ic('door', 24)} Lobby</button></div>
+        </div>`);
         el.querySelector('#d-re').onclick = () => { info.handled = true; close(); onRespawn(); };
         el.querySelector('#d-lobby').onclick = () => { info.handled = true; close(); onLobby(); };
         b.appendChild(el);

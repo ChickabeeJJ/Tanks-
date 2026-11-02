@@ -19,7 +19,7 @@ export function createRenderer(canvas, quality = 'high') {
 
   const scene = new THREE.Scene();
   scene.background = skyTexture();
-  scene.fog = new THREE.Fog(0xc4e2ff, 130, 380);
+  scene.fog = new THREE.Fog(0xc4e2ff, 240, 900); // long render distance
 
   // image-based lighting from the sky: soft reflections + natural fill
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -53,7 +53,7 @@ export function createRenderer(canvas, quality = 'high') {
   rim.position.set(-40, 30, -50);
   scene.add(rim);
 
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 700);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 2000);
   const ambience = createAmbience(scene);
   const post = high ? new Post(renderer, touch ? 0 : 4) : null;
   // cinematic skybox replaces the flat gradient background
@@ -278,9 +278,9 @@ export const LOBBY = {
     { id: 'wheel', label: 'Wheel', x: 27, z: 12, color: 0xffd21f },
   ],
   portals: [
-    { id: 'teams', label: 'Red VS Blue', sub: 'Teams', x: -15, z: 30, color: 0xff3048, color2: 0x2f9dff },
+    { id: 'teams', label: 'Red VS Blue', sub: 'Teams', x: -23, z: 30, color: 0xff3048, color2: 0x2f9dff },
     { id: 'ffa', label: 'Battle', sub: 'Free for all', x: 0, z: 33, color: 0xff2d7a, color2: 0xff8fb8, big: true },
-    { id: 'four', label: '4 Teams', sub: 'New!', x: 15, z: 30, color: 0xffcc1a, color2: 0x3ee06a },
+    { id: 'four', label: '4 Teams', sub: 'New!', x: 23, z: 30, color: 0xffcc1a, color2: 0x3ee06a },
   ],
 };
 
@@ -288,7 +288,7 @@ function wheelTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const ctx = c.getContext('2d');
-  const cols = ['#ffb020', '#25b8f0', '#36c95f', '#ff4f7a', '#9b5cff', '#ff7a2a', '#e8455c', '#1fbfa6'];
+  const cols = ['#ffae00', '#00b4ff', '#22e05a', '#ff2d78', '#8f3cff', '#ff6a00', '#ff1f3d', '#00e0c0'];
   ctx.fillStyle = '#e09a00'; ctx.beginPath(); ctx.arc(128, 128, 128, 0, Math.PI * 2); ctx.fill();
   for (let i = 0; i < 8; i++) {
     ctx.fillStyle = cols[i];
@@ -404,25 +404,82 @@ export function buildLobby(skinId) {
     g.add(glow);
     let model;
     if (p.id === 'chests') {
+      // angular chest: faceted body, prism lid, gold bands, glowing cut gem, crystal shards
       model = new THREE.Group();
-      const base = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2, 2.6), new THREE.MeshStandardMaterial({ color: 0xbfeeff, roughness: 0.3 }));
-      base.position.y = 1.2;
-      const lid = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.3, 3.6, 16, 1, false, 0, Math.PI), new THREE.MeshStandardMaterial({ color: 0xe6f9ff, roughness: 0.3 }));
-      lid.rotation.z = Math.PI / 2;
-      lid.position.y = 2.2;
-      const lock = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.7, 0.2), new THREE.MeshStandardMaterial({ color: 0x8fb8d0 }));
-      lock.position.set(0, 2.1, 1.35);
-      model.add(base, lid, lock);
-      anim.push((t) => { model.position.y = Math.sin(t * 2) * 0.25; });
+      const iceM = new THREE.MeshStandardMaterial({ color: 0x8fd6ff, roughness: 0.25, metalness: 0.35, flatShading: true, emissive: 0x1f6fa8, emissiveIntensity: 0.25 });
+      const iceD = new THREE.MeshStandardMaterial({ color: 0x4f9fd6, roughness: 0.3, metalness: 0.4, flatShading: true });
+      const goldM = new THREE.MeshStandardMaterial({ color: 0xffc21a, roughness: 0.25, metalness: 0.75, flatShading: true, emissive: 0x6a3a00, emissiveIntensity: 0.25 });
+      const body = new THREE.Mesh(new THREE.BoxGeometry(3.8, 2.0, 2.6), iceM);
+      body.position.y = 1.15;
+      const lower = new THREE.Mesh(new THREE.BoxGeometry(3.82, 0.7, 2.62), iceD);
+      lower.position.y = 0.5;
+      // prism lid: trapezoid cross-section extruded along x
+      const prof = new THREE.Shape();
+      prof.moveTo(-1.3, 0); prof.lineTo(1.3, 0); prof.lineTo(0.85, 0.95); prof.lineTo(-0.85, 0.95); prof.closePath();
+      const lidGeo = new THREE.ExtrudeGeometry(prof, { depth: 3.8, bevelEnabled: false });
+      lidGeo.rotateY(Math.PI / 2);
+      lidGeo.translate(-1.9, 0, 0);
+      const lid = new THREE.Mesh(lidGeo, iceM);
+      lid.position.y = 2.15;
+      model.add(body, lower, lid);
+      const band = (w, h, d, x, y, z) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), goldM); m.position.set(x, y, z); m.castShadow = true; model.add(m); };
+      band(3.9, 0.22, 2.72, 0, 2.12, 0);      // lid seam
+      band(3.9, 0.22, 2.72, 0, 0.18, 0);      // base trim
+      band(0.5, 2.0, 2.72, 0, 1.15, 0);       // centre strap (body)
+      for (const sx of [-1, 1]) band(0.22, 2.0, 2.72, sx * 1.86, 1.15, 0); // side straps
+      const strapLid = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.0, 2.0), goldM);
+      strapLid.position.set(0, 2.62, 0);
+      model.add(strapLid);
+      for (const sx of [-1, 1]) for (const sz of [-1, 1]) band(0.45, 0.45, 0.45, sx * 1.82, 2.0, sz * 1.24); // corner brackets
+      const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.42, 0), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.5, 2.2, 2.8), toneMapped: false }));
+      gem.position.set(0, 1.55, 1.42);
+      gem.scale.set(1, 1.3, 0.6);
+      model.add(gem);
+      const shardM = new THREE.MeshStandardMaterial({ color: 0xc8f2ff, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.85, flatShading: true, emissive: 0x3fa8e0, emissiveIntensity: 0.4 });
+      for (const [x, z, h, tilt] of [[-2.4, -0.6, 1.8, 0.3], [-2.2, 0.9, 1.1, -0.2], [2.4, -0.4, 2.1, -0.35], [2.3, 0.9, 1.2, 0.25], [-0.6, -1.6, 1.0, 0.4], [0.9, -1.6, 1.4, -0.3]]) {
+        const sh = new THREE.Mesh(new THREE.ConeGeometry(0.32, h, 4), shardM);
+        sh.position.set(x, h / 2, z);
+        sh.rotation.z = tilt;
+        sh.castShadow = true;
+        model.add(sh);
+      }
+      model.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+      anim.push((t) => { model.position.y = 0.15 + Math.sin(t * 2) * 0.12; gem.rotation.y = t * 2; });
     } else if (p.id === 'wheel') {
+      // vibrant, unlit wheel face + gold rim with chasing bulbs
       model = new THREE.Group();
-      const disc = new THREE.Mesh(new THREE.CylinderGeometry(2.6, 2.6, 0.4, 36), [new THREE.MeshStandardMaterial({ color: 0xffffff }), new THREE.MeshStandardMaterial({ map: wheelTexture() }), new THREE.MeshStandardMaterial({ map: wheelTexture() })]);
+      const face = new THREE.MeshBasicMaterial({ map: wheelTexture(), toneMapped: false });
+      const rimM = new THREE.MeshStandardMaterial({ color: 0xffc21a, metalness: 0.7, roughness: 0.25, emissive: 0x8a5200, emissiveIntensity: 0.35 });
+      const disc = new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.8, 0.35, 48), [rimM, face, face]);
       disc.rotation.x = Math.PI / 2;
-      disc.position.y = 3.6;
-      const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.6, 3, 10), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-      stand.position.y = 1.5;
-      model.add(disc, stand);
-      anim.push((t) => { disc.rotation.y = t * 1.5; });
+      disc.position.y = 3.9;
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(2.9, 0.22, 10, 48), rimM);
+      rim.position.y = 3.9;
+      const bulbs = [];
+      for (let k = 0; k < 16; k++) {
+        const bm = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }));
+        const a = (k / 16) * Math.PI * 2;
+        bm.position.set(Math.cos(a) * 2.9, 3.9 + Math.sin(a) * 2.9, 0.2);
+        bulbs.push(bm);
+        model.add(bm);
+      }
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.6, 16), rimM);
+      hub.rotation.x = Math.PI / 2;
+      hub.position.set(0, 3.9, 0);
+      const pointer = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.8, 3), new THREE.MeshBasicMaterial({ color: new THREE.Color(2.4, 0.3, 0.4), toneMapped: false }));
+      pointer.rotation.z = Math.PI;
+      pointer.position.set(0, 7.0, 0.25);
+      const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.7, 3.2, 10), rimM);
+      stand.position.y = 1.6;
+      const foot = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.3, 0.35, 16), rimM);
+      foot.position.y = 0.18;
+      model.add(disc, rim, hub, pointer, stand, foot);
+      const hot = new THREE.Color(3, 2.4, 0.8), cold = new THREE.Color(1.6, 0.4, 1.4);
+      anim.push((t) => {
+        disc.rotation.y = t * 1.5;
+        const k0 = Math.floor(t * 8);
+        bulbs.forEach((bm, k) => bm.material.color.copy((k + k0) % 2 ? hot : cold));
+      });
     } else if (p.id === 'skins') {
       const tk = buildTank('scout', 'tiger');
       model = tk.group;
@@ -457,7 +514,7 @@ export function buildLobby(skinId) {
     const g = new THREE.Group();
     g.position.set(p.x, 0, p.z);
     g.lookAt(0, 0, 0);
-    const s = p.big ? 1.35 : 1;
+    const s = (p.big ? 1.35 : 1) * 1.5; // bigger portals
     const arch = new THREE.Mesh(new THREE.TorusGeometry(4.6 * s, 0.9 * s, 12, 32, Math.PI), new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.4 }));
     arch.castShadow = true;
     const arch2 = new THREE.Mesh(new THREE.TorusGeometry(3.7 * s, 0.35 * s, 8, 32, Math.PI), new THREE.MeshStandardMaterial({ color: p.color2, roughness: 0.4 }));
@@ -470,7 +527,7 @@ export function buildLobby(skinId) {
     g.add(arch, arch2, fill);
     const label = textSprite(p.label, { size: 56, height: 2.2 * s });
     label.position.set(0, 7.2 * s, 0);
-    const sub = textSprite(p.sub, { size: 40, height: 1.4, color: '#fff7a8' });
+    const sub = textSprite(p.sub, { size: 40, height: 1.4 * 1.4, color: '#fff7a8' });
     sub.position.set(0, 5.6 * s + 0.3, 0);
     g.add(label, sub);
     anim.push((t) => { fill.material.opacity = 0.35 + Math.sin(t * 3 + p.x) * 0.12; });

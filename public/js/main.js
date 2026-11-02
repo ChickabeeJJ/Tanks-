@@ -86,7 +86,7 @@ G.leaveMatch = () => {
 G.claimXp = () => {
   const left = profile.d.store.xpAdAt - Date.now();
   if (left > 0) { G.hud.toast(`Free XP ready in ${Math.ceil(left / 1000)}s`, 'red'); return; }
-  const v = profile.xpLv(0.25);
+  const v = 1000; // free XP is always 1,000
   profile.d.store.xpAdAt = Date.now() + 180000;
   profile.addXp(v);
   G.hud.toast(`Received +${v.toLocaleString()} XP!`, 'green');
@@ -149,11 +149,13 @@ async function boot() {
   SDK.loadingStart();
   progress(30, 'Loading save...');
   profile.load();
-  if (!profile.d.name) {
-    const u = await SDK.getUser();
-    profile.d.name = cleanName(u && u.username ? u.username : 'Guest' + Math.floor(1000 + Math.random() * 9000));
+  // Name = the signed-in CrazyGames username, otherwise "Guest" (not editable).
+  const applyUser = (u) => {
+    profile.d.name = u && u.username ? cleanName(u.username) : 'Guest';
     profile.save();
-  }
+  };
+  applyUser(await SDK.getUser());
+  SDK.call((s) => s.user.addAuthListener((u) => { applyUser(u); if (G.hud) G.hud.refresh(); }));
   Audio.setVolume(profile.d.settings.sfx);
   progress(55, 'Building world...');
   const canvas = document.getElementById('c');
@@ -197,7 +199,7 @@ async function boot() {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (G.flip) {
-      G.flip.t = Math.min(1, G.flip.t + dt / 0.25);
+      G.flip.t = Math.min(1, G.flip.t + dt / 0.125); // 2x faster 180 turn
       G.camRig.yaw = G.flip.from + (G.flip.to - G.flip.from) * G.flip.t;
       if (G.flip.t >= 1) G.flip = null;
     }

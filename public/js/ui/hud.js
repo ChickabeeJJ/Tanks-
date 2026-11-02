@@ -155,8 +155,9 @@ export function createHUD(G) {
       els.gems.textContent = fmt(d.gems);
       els.rank.textContent = `Rank ${d.rank.idx}`;
       els.rank.parentElement.title = `${rankTier(d.rank.idx)} Rank ${d.rank.idx}`;
-      els.xpad.textContent = '+' + fmtFull(profile.xpLv(0.25));
+      els.xpad.textContent = '+1,000';
       badge(els.giftsBadge, profile.giftsReady());
+      $('#b-gifts', root).classList.toggle('ready', profile.giftsReady() > 0);
       badge(els.questBadge, profile.questsReady());
       badge(els.rankBadge, profile.rankReady());
       badge(els.storeBadge, d.store.starterDay !== dayId() ? 1 : 0);

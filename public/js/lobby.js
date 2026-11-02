@@ -7,6 +7,81 @@ import { Input } from './input.js';
 import { profile } from './profile.js';
 import { MODES } from '../shared/config.js';
 import { Audio } from './audio.js';
+import { textSprite } from './render/textures.js';
+import { botName } from '../shared/names.js';
+import { SKIN_IDS } from '../shared/skins.js';
+
+// ------------------------------------------------------------------ lobby NPCs
+// 1-2 other "players" hang around the lobby: walk into a battle portal, visit a shop pad,
+// wander, or just sit AFK. Purely visual (client-side).
+const NPC_TANKS = ['default', 'default', 'default', 'double', 'scout', 'spammer', 'side', 'triway', 'hitman', 'grinder', 'flame'];
+class LobbyNpc {
+  constructor(root) {
+    this.root = root;
+    const skin = Math.random() < 0.45 ? 'default' : SKIN_IDS[1 + Math.floor(Math.random() * (SKIN_IDS.length - 1))];
+    this.model = buildTank(NPC_TANKS[Math.floor(Math.random() * NPC_TANKS.length)], skin);
+    this.g = new THREE.Group();
+    this.g.add(this.model.group);
+    this.label = textSprite(botName(), { size: 38, height: 1.4 });
+    this.label.position.y = this.model.R * 1.2 + 2.4;
+    this.g.add(this.label);
+    const a = Math.random() * Math.PI * 2;
+    this.x = Math.cos(a) * 6; this.z = Math.sin(a) * 6;
+    this.aim = Math.random() * 6.28;
+    this.spawnT = 0;
+    this.leaving = 0;
+    this.g.scale.setScalar(0.01);
+    root.add(this.g);
+    this.next();
+  }
+  next() {
+    const r = Math.random();
+    this.wait = 0;
+    if (r < 0.35) { const po = LOBBY.portals[Math.floor(Math.random() * LOBBY.portals.length)]; this.goal = { x: po.x, z: po.z, kind: 'portal' }; }
+    else if (r < 0.6) { const pad = LOBBY.pads[Math.floor(Math.random() * LOBBY.pads.length)]; this.goal = { x: pad.x + (Math.random() - 0.5) * 3, z: pad.z + (Math.random() - 0.5) * 3, kind: 'pad', stay: 3 + Math.random() * 5 }; }
+    else if (r < 0.82) { this.goal = { x: (Math.random() * 2 - 1) * 30, z: (Math.random() * 2 - 1) * 26, kind: 'wander' }; }
+    else this.goal = { kind: 'afk', stay: 5 + Math.random() * 9 };
+  }
+  update(dt, t) {
+    this.spawnT = Math.min(1, this.spawnT + dt * 2.5);
+    let scale = this.spawnT;
+    if (this.leaving) {
+      this.leaving += dt;
+      scale = Math.max(0.01, 1 - this.leaving * 2);
+      if (this.leaving > 0.55) return false; // gone into the portal
+    }
+    const G = this.goal;
+    if (G.kind === 'afk' || this.wait > 0) {
+      this.wait = this.wait > 0 ? this.wait - dt : 0;
+      if (G.kind === 'afk') { G.stay -= dt; this.aim += dt * 0.6; if (G.stay <= 0) this.next(); }
+      else if (this.wait <= 0) this.next();
+    } else if (!this.leaving) {
+      const dx = G.x - this.x, dz = G.z - this.z, d = Math.hypot(dx, dz);
+      if (d < 1.2) {
+        if (G.kind === 'portal') this.leaving = 0.001;
+        else if (G.kind === 'pad') this.wait = G.stay;
+        else this.next();
+      } else {
+        const sp = 15 * Math.min(1, d / 3);
+        this.x += (dx / d) * sp * dt;
+        this.z += (dz / d) * sp * dt;
+        const want = Math.atan2(dz, dx);
+        let da = ((want - this.aim + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+        this.aim += Math.max(-dt * 6, Math.min(dt * 6, da));
+      }
+    }
+    this.g.position.set(this.x, 0, this.z);
+    this.g.scale.setScalar(scale);
+    this.model.rot.rotation.y = -this.aim;
+    return true;
+  }
+  dispose() {
+    this.root.remove(this.g);
+    disposeTank(this.model);
+    this.label.material.map.dispose();
+    this.label.material.dispose();
+  }
+}
 
 export class Lobby {
   constructor(G) {
@@ -37,7 +112,19 @@ export class Lobby {
 
   setSkin() { this.makeTank(); }
 
+  updateNpcs(dt) {
+    if (!this.npcs) { this.npcs = []; this.npcTimer = 2 + Math.random() * 3; this.npcWant = 1 + (Math.random() < 0.5 ? 1 : 0); }
+    this.npcs = this.npcs.filter((n) => { const alive = n.update(dt, this.t); if (!alive) n.dispose(); return alive; });
+    this.npcTimer -= dt;
+    if (this.npcTimer <= 0) {
+      this.npcTimer = 6 + Math.random() * 10;
+      this.npcWant = 1 + (Math.random() < 0.5 ? 1 : 0);
+      if (this.npcs.length < this.npcWant) this.npcs.push(new LobbyNpc(this.env.root));
+    }
+  }
+
   stop() {
+    if (this.npcs) { this.npcs.forEach((n) => n.dispose()); this.npcs = []; }
     if (!this.env) return;
     this.G.scene.remove(this.env.root);
     this.env.root.traverse((o) => {
@@ -95,7 +182,7 @@ export class Lobby {
     }
     // portals
     for (const po of LOBBY.portals) {
-      const r = po.big ? 5 : 4;
+      const r = po.big ? 7.5 : 6; // bigger portals
       if (Math.hypot(po.x - p.x, po.z - p.z) < r) {
         const mode = MODES[po.id];
         if (mode.minLevel && profile.level < mode.minLevel) {
@@ -112,6 +199,7 @@ export class Lobby {
     }
 
     for (const f of this.env.anim) f(this.t);
+    this.updateNpcs(dt);
     rig.update(dt, p.x, p.z, 1);
     placeSun(G.sun, rig.cur.x, rig.cur.z);
   }
