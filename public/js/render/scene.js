@@ -4,6 +4,7 @@ import { gridTexture, stripeTexture, skyTexture, textSprite, textCanvas } from '
 import { TEAM_COLORS } from '../../shared/config.js';
 import { buildTank } from './models.js';
 import { Post } from './post.js';
+import { createSky } from './sky.js';
 
 export function createRenderer(canvas, quality = 'high') {
   const high = quality === 'high';
@@ -18,7 +19,7 @@ export function createRenderer(canvas, quality = 'high') {
 
   const scene = new THREE.Scene();
   scene.background = skyTexture();
-  scene.fog = new THREE.Fog(0xdcefff, 120, 360);
+  scene.fog = new THREE.Fog(0xc4e2ff, 130, 380);
 
   // image-based lighting from the sky: soft reflections + natural fill
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -55,6 +56,10 @@ export function createRenderer(canvas, quality = 'high') {
   const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 700);
   const ambience = createAmbience(scene);
   const post = high ? new Post(renderer, touch ? 0 : 4) : null;
+  // cinematic skybox replaces the flat gradient background
+  const sky = createSky(new THREE.Vector3(...SUN_OFFSET), !!post);
+  scene.add(sky.mesh);
+  scene.background = new THREE.Color(0xc4e2ff);
 
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -69,6 +74,7 @@ export function createRenderer(canvas, quality = 'high') {
 
   function render(dt) {
     ambience.update(dt, camera);
+    sky.update(dt, camera);
     if (post) post.render(scene, camera, dt);
     else renderer.render(scene, camera);
   }
@@ -82,7 +88,7 @@ export function placeSun(sun, x, z) {
   sun.target.position.set(x, 0, z);
 }
 
-// Ambience: drifting light motes around the camera + soft clouds on the horizon.
+// Ambience: drifting light motes around the camera (clouds live in the sky shader).
 function softDot() {
   const c = document.createElement('canvas');
   c.width = c.height = 64;
@@ -93,22 +99,6 @@ function softDot() {
   gr.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = gr;
   g.fillRect(0, 0, 64, 64);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-function cloudTex() {
-  const c = document.createElement('canvas');
-  c.width = 256; c.height = 128;
-  const g = c.getContext('2d');
-  for (let i = 0; i < 14; i++) {
-    const x = 40 + Math.random() * 176, y = 60 + (Math.random() - 0.5) * 30, r = 22 + Math.random() * 30;
-    const gr = g.createRadialGradient(x, y, 0, x, y, r);
-    gr.addColorStop(0, 'rgba(255,255,255,.9)');
-    gr.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = gr;
-    g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
-  }
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
@@ -130,24 +120,12 @@ function createAmbience(scene) {
   }));
   motes.frustumCulled = false;
   scene.add(motes);
-  const clouds = new THREE.Group();
-  const ct = cloudTex();
-  for (let i = 0; i < 14; i++) {
-    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: ct, transparent: true, opacity: 0.85, depthWrite: false, fog: false }));
-    const a = (i / 14) * Math.PI * 2 + Math.random() * 0.3;
-    s.position.set(Math.cos(a) * 420, 60 + Math.random() * 50, Math.sin(a) * 420);
-    s.scale.set(180 + Math.random() * 120, 70 + Math.random() * 40, 1);
-    clouds.add(s);
-  }
-  scene.add(clouds);
   let t = 0;
   const center = new THREE.Vector3();
   return {
     update(dt, camera) {
       t += dt;
       center.copy(camera.position);
-      clouds.position.set(center.x, 0, center.z);
-      clouds.rotation.y = t * 0.004;
       const p = geo.attributes.position.array;
       for (let i = 0; i < N; i++) {
         let x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2];
@@ -328,8 +306,20 @@ export function buildLobby(skinId) {
   const H = LOBBY.half;
   const tex = gridTexture('#f7fafd', '#edf2f8', 2).clone();
   tex.needsUpdate = true;
-  tex.repeat.set(40, 40);
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
+  const PLAT = (H + 4) * 2 + 10; // just past the walls
+  tex.repeat.set(PLAT / 15, PLAT / 15);
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(PLAT, PLAT), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 }));
+  // the platform floats above the clouds: thick metal slab with a glowing rim
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(PLAT, 7, PLAT), new THREE.MeshStandardMaterial({ color: 0x9fb2c6, metalness: 0.55, roughness: 0.35 }));
+  slab.position.y = -3.52;
+  slab.receiveShadow = true;
+  root.add(slab);
+  const under = new THREE.Mesh(new THREE.CylinderGeometry(PLAT * 0.42, PLAT * 0.12, 26, 6), new THREE.MeshStandardMaterial({ color: 0x8095ab, metalness: 0.5, roughness: 0.45 }));
+  under.position.y = -20;
+  root.add(under);
+  const rimGlow = new THREE.Mesh(new THREE.BoxGeometry(PLAT + 0.4, 0.5, PLAT + 0.4), new THREE.MeshBasicMaterial({ color: 0x8fe3ff }));
+  rimGlow.position.y = -1.2;
+  root.add(rimGlow);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   root.add(floor);

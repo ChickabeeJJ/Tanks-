@@ -40,7 +40,7 @@ const P = {
   boot: `<path d="M14 8h18v26l20 8v12H10z" fill="#fff"/><path d="M10 50h42v4H10z" fill="#c9d3df"/>`,
   spikes: `<path d="M32 4l6 12 12-6-2 13 13 3-10 9 10 9-13 3 2 13-12-6-6 12-6-12-12 6 2-13-13-3 10-9-10-9 13-3-2-13 12 6z" fill="#e6eef7"/><circle cx="32" cy="32" r="10" fill="#8fa3bd"/>`,
   chevrons: `<path d="M8 34l24-18 24 18v12L32 28 8 46z" fill="#ffffff"/><path d="M8 54l24-18 24 18v6L32 42 8 60z" fill="#ffffff"/>`,
-  statup: `<path d="M8 30L32 10l24 20v15L32 26 8 45z" fill="#3fdc5a"/><path d="M8 52L32 33l24 19v11L32 45 8 63z" fill="#27b847"/><path d="M14 29L32 15l18 14" fill="none" stroke="#a6f7b4" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>`,
+  statup: `<g transform="translate(0 -4.5)"><path d="M8 30L32 10l24 20v15L32 26 8 45z" fill="#3fdc5a"/><path d="M8 52L32 33l24 19v11L32 45 8 63z" fill="#27b847"/><path d="M14 29L32 15l18 14" fill="none" stroke="#a6f7b4" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></g>`,
   play: `<path d="M18 8l38 24-38 24z" fill="#fff"/>`,
   search: `<circle cx="27" cy="27" r="16" ${L('#fff', 7)}/><path d="M39 39l15 15" ${L('#fff', 9)}/>`,
   expand: `<path d="M8 8h18L8 26zM56 8v18L38 8zM8 56V38l18 18zM56 56H38l18-18z" fill="#fff"/><path d="M18 18l28 28M46 18L18 46" ${L('#fff', 5)}/>`,

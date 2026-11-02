@@ -471,3 +471,9 @@ body.touch #bottomleft { bottom: auto; top: 10px; left: 110px; transform: scale(
 .rv-btns { position: relative; margin-top: 8px; }
 .cf { position: absolute; top: -12px; width: 10px; height: 14px; border-radius: 2px; z-index: 6; pointer-events: none; animation: cffall 2s ease-in forwards; }
 @keyframes cffall { to { transform: translate(var(--dx), 480px) rotate(var(--rot)); opacity: .2; } }
+
+/* top bar spacing: the stars hang 30px outside the bar, keep Q/E clear of them */
+#topbar { gap: 40px; align-items: flex-start; }
+#topbar .qe { margin-top: -4px; }
+@media (max-width: 820px), (max-height: 560px) { #topbar { gap: 30px; } }
+.qe .ic { display: block; margin: auto; }
