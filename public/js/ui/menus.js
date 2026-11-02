@@ -141,27 +141,30 @@ export function createMenus(G) {
     });
   }
 
-  // ------------------------------------------------------------------ gifts
+  // ------------------------------------------------------------------ gifts (4x3 grid like the original)
   function gifts() {
     modal({
       title: 'Gifts', icon: 'gift', tick: (st) => st.redraw(),
       render(b) {
         const el = profile.giftElapsed();
-        const g = h('<div class="grid"></div>');
+        const g = h('<div class="gifts"></div>');
         GIFTS.forEach((gf, i) => {
           const claimed = profile.session.claimedGifts.has(i);
           const ready = !claimed && el >= gf.at;
           const r = gf.r;
-          const label = r.gems ? `${fmtFull(r.gems)} ${ic('gem', 20)}` : r.spins ? `${r.spins} Spin${r.spins > 1 ? 's' : ''} ${ic('wheel', 20)}` : `${fmtFull(profile.xpLv(r.xpLv))} ${ic('star', 20)}`;
-          const c = h(`<div class="card ${ready ? 'sel' : ''}" style="${claimed ? 'opacity:.5' : ''}">${ic('gift', 48)}<div>${label}</div>
-            <div class="${ready ? 'owned' : 'muted'}">${claimed ? 'Claimed' : ready ? 'CLAIM!' : timeLeft((gf.at - el) * 1000)}</div></div>`);
+          const isGem = !!r.gems;
+          const amount = isGem ? r.gems : profile.xpLv(r.xpLv);
+          const cls = claimed ? 'done' : ready ? 'ready' : gf.mega ? 'lock-mega' : isGem ? 'lock-gem' : 'lock-xp';
+          const c = h(`<div class="gift ${cls}">${ic(isGem ? 'gem' : 'star', 64)}
+            <span class="amt lbl">+${fmtFull(amount)}</span>
+            ${!ready && !claimed ? `<span class="lk">${ic('lock', 30)}</span><span class="tm lbl">${timeLeft((gf.at - el) * 1000)}</span>` : ''}
+            ${claimed ? `<span class="ck">${ic('check', 30)}</span>` : ''}</div>`);
           c.addEventListener('click', () => {
             const out = profile.claimGift(i);
             if (out) { say(out); Audio.reward(); } else if (!claimed) { Audio.error(); G.hud.toast('Keep playing to unlock!', 'red'); }
           });
           g.appendChild(c);
         });
-        b.appendChild(h('<div class="muted center" style="margin-bottom:6px">Play to unlock gifts! Timers reset every session.</div>'));
         b.appendChild(g);
       },
     });
@@ -388,7 +391,7 @@ export function createMenus(G) {
         const g = h('<div class="grid"></div>');
         if (st.tab === 'tanks') {
           const owned = profile.d.owned;
-          if (!owned.length) b.appendChild(h('<div class="muted center">No special tanks yet. Get them in the Tanks Shop, Chests, the Wheel and Quests!</div>'));
+          if (!owned.length) { b.appendChild(h(`<div class="empty-state">${ic('box', 72)}<div>No special tanks yet!</div><div class="muted">Get them in the Tanks Shop, Chests, the Wheel and Quests.</div></div>`)); return; }
           for (const id of owned) g.appendChild(h(`<div class="card"><img src="${tankIcon(id, 64)}"><div>${TANKS[id].name}</div><div class="muted">Lv ${TANKS[id].level}+</div></div>`));
         } else {
           for (const s of SKINS.filter((x) => profile.ownsSkin(x.id))) {
@@ -402,78 +405,86 @@ export function createMenus(G) {
     });
   }
 
-  // ------------------------------------------------------------------ wheel
+  // ------------------------------------------------------------------ prize wheel (original design)
   let wheelRot = 0;
-  function wheelCanvas() {
-    const c = document.createElement('canvas');
-    c.width = c.height = 600;
-    const ctx = c.getContext('2d');
-    const n = WHEEL.length;
-    WHEEL.forEach((s, i) => {
-      const a0 = -Math.PI / 2 + (i / n) * Math.PI * 2, a1 = -Math.PI / 2 + ((i + 1) / n) * Math.PI * 2;
-      ctx.fillStyle = s.color;
-      ctx.beginPath(); ctx.moveTo(300, 300); ctx.arc(300, 300, 296, a0, a1); ctx.fill();
-      ctx.strokeStyle = '#16233f'; ctx.lineWidth = 4; ctx.stroke();
-      ctx.save();
-      ctx.translate(300, 300);
-      ctx.rotate((a0 + a1) / 2);
-      ctx.textAlign = 'center';
-      ctx.font = '700 30px Fredoka, sans-serif';
-      ctx.lineWidth = 6; ctx.strokeStyle = '#16233f'; ctx.fillStyle = '#fff';
-      const label = s.tank ? s.label : s.gems ? `+${fmtFull(s.gems)} Gems` : `+${fmtFull(profile.xpLv(s.xpLv))} XP`;
-      ctx.translate(190, 0);
-      ctx.rotate(Math.PI / 2);
-      if (s.tank) {
-        const img = new Image();
-        img.src = tankIcon(s.tank, 96);
-        ctx.drawImage(img, -40, -60, 80, 80);
-      }
-      for (const [k, part] of (s.tank ? s.label.split(' ') : [label]).entries()) {
-        ctx.strokeText(part, 0, (s.tank ? 40 : 10) + k * 30);
-        ctx.fillText(part, 0, (s.tank ? 40 : 10) + k * 30);
-      }
-      ctx.restore();
+  const shade = (hex, k) => {
+    const n = parseInt(hex.slice(1), 16);
+    const f = (c) => Math.max(0, Math.min(255, Math.round(c * k)));
+    return '#' + [(n >> 16) & 255, (n >> 8) & 255, n & 255].map((c) => f(c).toString(16).padStart(2, '0')).join('');
+  };
+  const segValue = (sg) => (sg.tank ? TANKS[sg.tank].name : sg.gems ? fmt(sg.gems) : fmt(profile.xpLv(sg.xpLv)));
+  function wheelSvg() {
+    const C = 165, R = 148, n = WHEEL.length, step = 360 / n;
+    const pt = (r, deg) => { const a = ((deg - 90) * Math.PI) / 180; return [C + r * Math.cos(a), C + r * Math.sin(a)]; };
+    let segs = '', deco = '';
+    WHEEL.forEach((sg, i) => {
+      const a0 = i * step, a1 = (i + 1) * step;
+      const [x0, y0] = pt(R, a0), [x1, y1] = pt(R, a1);
+      const [u0, v0] = pt(R * 0.62, a0), [u1, v1] = pt(R * 0.62, a1);
+      segs += `<path d="M${C} ${C}L${x0} ${y0}A${R} ${R} 0 0 1 ${x1} ${y1}Z" fill="${sg.color}"/>`;
+      segs += `<path d="M${u0} ${v0}A${R * 0.62} ${R * 0.62} 0 0 1 ${u1} ${v1}L${x1} ${y1}A${R} ${R} 0 0 0 ${x0} ${y0}Z" fill="${shade(sg.color, 1.12)}"/>`;
+      segs += `<path d="M${C} ${C}L${x0} ${y0}" stroke="${shade(sg.color, 0.55)}" stroke-width="3"/>`;
+      const mid = a0 + step / 2;
+      const [ix, iy] = pt(R * 0.74, mid);
+      const icon = sg.tank
+        ? `<image href="${tankIcon(sg.tank)}" x="${ix - 26}" y="${iy - 26}" width="52" height="52" transform="rotate(${mid} ${ix} ${iy})"/>`
+        : `<g transform="rotate(${mid} ${ix} ${iy})">${ic(sg.gems ? 'gem' : 'star', 40).replace('<svg ', `<svg x="${ix - 20}" y="${iy - 20}" `)}</g>`;
+      const [tx, ty] = pt(R * 0.43, mid);
+      deco += icon + `<text x="${tx}" y="${ty}" transform="rotate(${mid} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle"
+        font-family="Fredoka, sans-serif" font-weight="700" font-size="${sg.tank ? 15 : 18}" fill="#fff" stroke="${shade(sg.color, 0.45)}" stroke-width="4" paint-order="stroke">${sg.tank ? '' : '+'}${segValue(sg)}</text>`;
     });
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(300, 300, 60, 0, Math.PI * 2); ctx.fill();
-    ctx.lineWidth = 6; ctx.strokeStyle = '#16233f'; ctx.stroke();
-    return c.toDataURL();
+    let bulbs = '';
+    for (let k = 0; k < 24; k++) { const [bx, by] = pt(R + 8, k * 15); bulbs += `<circle class="bulb ${k % 2 ? 'b2' : ''}" cx="${bx}" cy="${by}" r="4.2"/>`; }
+    return `<svg class="wheel" viewBox="0 0 330 330">
+      <defs><radialGradient id="hubg" cx="40%" cy="35%"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#cfe3f5"/></radialGradient>
+        <linearGradient id="rimg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd84a"/><stop offset="1" stop-color="#e09a00"/></linearGradient></defs>
+      <circle cx="${C}" cy="${C}" r="${R + 15}" fill="url(#rimg)" stroke="#a35f00" stroke-width="4"/>
+      ${bulbs}
+      <g class="pw-rot" style="transform:rotate(${wheelRot}deg)">${segs}${deco}
+        <circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="#a35f00" stroke-width="4"/></g>
+      <circle cx="${C}" cy="${C}" r="36" fill="url(#hubg)" stroke="#7a9bbf" stroke-width="4"/>
+      ${ic('star', 44).replace('<svg ', `<svg x="${C - 22}" y="${C - 22}" `)}
+    </svg>
+    <svg class="pw-flag" viewBox="0 0 46 56"><path d="M23 54L4 18A20 20 0 1 1 42 18z" fill="#ff3b4f" stroke="#94101d" stroke-width="4" stroke-linejoin="round"/><circle cx="23" cy="18" r="7" fill="#fff"/></svg>`;
   }
   function wheel() {
-    let fast = false, spinning = false, showOdds = false;
+    let fast = false, spinning = false;
     modal({
-      title: 'Wheel', icon: 'wheel', tick: (st) => { if (!spinning) st.el.querySelector('#wh-free') && (st.el.querySelector('#wh-free').textContent = freeTxt()); },
+      title: 'Wheel', icon: 'wheel', wide: true,
+      tick: (st) => { const el = st.el.querySelector('#wh-free'); if (el && !spinning) el.textContent = freeTxt(); },
       render(b, st) {
         const spins = profile.wheelSpins();
-        b.appendChild(h(`<div class="col center" style="align-items:center">
-          <div id="wheelwrap"><img id="wheel" src="${wheelCanvas()}" style="transform:rotate(${wheelRot}deg)"><div id="wheelptr"></div></div>
-          <div class="row center"><button class="btn yellow stroke" id="wh-spin">${ic('wheel', 20)} Spin</button><button class="btn stroke" id="wh-odds">${ic('dice', 20)} Odds</button><button class="btn ${fast ? 'green' : ''} stroke" id="wh-fast">${ic('fire', 20)} Fast</button></div>
-          <div class="big">${spins} Spin${spins === 1 ? '' : 's'}</div>
-          <div class="muted" id="wh-free">${freeTxt()}</div>
-          <div id="wh-oddslist" class="box ${showOdds ? '' : 'hidden'}" style="width:100%"></div></div>`));
-        const ol = b.querySelector('#wh-oddslist');
-        ol.innerHTML = '<div class="big">Chances</div>' + WHEEL.slice().sort((a, c) => a.odds - c.odds).map((s) => `<div class="row between"><span>${s.tank ? s.label : s.gems ? `+${fmtFull(s.gems)} Gems` : `+${fmtFull(profile.xpLv(s.xpLv))} XP`}</span><b>${s.odds}%</b></div>`).join('');
-        b.querySelector('#wh-odds').onclick = () => { showOdds = !showOdds; ol.classList.toggle('hidden', !showOdds); };
+        const total = WHEEL.reduce((t, sg) => t + sg.odds, 0);
+        const odds = WHEEL.map((sg) => `<div><span class="sw" style="background:${sg.color}"></span>${sg.tank ? sg.label + ' tank' : '+' + segValue(sg) + (sg.gems ? ' Gems' : ' XP')}</div><div>${Math.round((sg.odds / total) * 1000) / 10}%</div>`).join('');
+        b.appendChild(h(`<div class="pw">
+          <div class="pw-stage">${wheelSvg()}</div>
+          <div class="pw-side">
+            <div class="pw-count lbl">${spins} Spin${spins === 1 ? '' : 's'}</div>
+            <button class="btn green" id="wh-spin" style="font-size:28px;padding:10px">${ic('spin', 30)} Spin!</button>
+            <button class="btn ${fast ? 'yellow' : ''}" id="wh-fast">${ic('fire', 22)} Fast spin: ${fast ? 'ON' : 'OFF'}</button>
+            <div class="muted center" id="wh-free">${freeTxt()}</div>
+            <div class="box"><div class="big" style="font-size:17px;margin-bottom:4px">${ic('dice', 20)} Chances</div><div class="pw-odds">${odds}</div></div>
+          </div></div>`));
         b.querySelector('#wh-fast').onclick = () => { fast = !fast; st.redraw(); };
         b.querySelector('#wh-spin').onclick = () => {
           if (spinning) return;
           const res = profile.spinWheel();
-          if (!res) { Audio.error(); G.hud.toast('No spins left!', 'red'); return; }
+          if (!res) { Audio.error(); G.hud.toast('No spins left! Free spin every 4 hours.', 'red'); return; }
           spinning = true;
           const n = WHEEL.length;
-          const target = 360 - ((res.idx + 0.5) * 360) / n + (Math.random() - 0.5) * (300 / n) * 0.6;
-          const base = wheelRot - (wheelRot % 360);
-          wheelRot = base + 360 * (fast ? 2 : 6) + target;
-          const img = b.querySelector('#wheel');
-          img.style.transition = `transform ${fast ? 0.8 : 3.2}s cubic-bezier(.12,.75,.15,1)`;
-          img.style.transform = `rotate(${wheelRot}deg)`;
+          const target = 360 - ((res.idx + 0.5) * 360) / n + (Math.random() - 0.5) * (360 / n) * 0.6;
+          wheelRot = wheelRot - (wheelRot % 360) + 360 * (fast ? 2 : 6) + target;
+          const g = b.querySelector('.pw-rot');
+          g.style.transition = `transform ${fast ? 0.8 : 3.4}s cubic-bezier(.12,.75,.15,1)`;
+          requestAnimationFrame(() => { g.style.transform = `rotate(${wheelRot}deg)`; });
           let ticks = 0;
-          const tk = setInterval(() => { Audio.tick(); if (++ticks > (fast ? 6 : 20)) clearInterval(tk); }, fast ? 110 : 150);
+          const tk = setInterval(() => { Audio.tick(); if (++ticks > (fast ? 6 : 22)) clearInterval(tk); }, fast ? 110 : 150);
           setTimeout(() => {
             spinning = false;
             say(res.out);
             Audio.reward();
             if (current === st) st.redraw();
-          }, fast ? 850 : 3300);
+          }, fast ? 850 : 3500);
         };
       },
     });

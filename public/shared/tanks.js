@@ -146,6 +146,15 @@ T('powerhouse', 'Powerhouse', 'Melee', 3, 42, 'spiker', [],
 T('glacier', 'Glacier', 'Special', 3, 42, 'breaker',
   [b({ kind: 'freeze', w: 1.6, len: 3.4, rel: 1.6, dmg: 1.6, pen: 2.5, bs: 1.5, spd: 0.8 })]);
 
+// ---------- Mid tiers (Lv 60 / 80) ----------
+T('godfather', 'Godfather', 'Shooter', 3, 60, 'triple',
+  [b({ len: 4.0, w: 1.45, dmg: 1.6, pen: 1.8, rel: 1.15 }), b({ ox: -1.0, len: 3.3, w: 0.8, dmg: 0.6, delay: 0.5 }), b({ ox: 1.0, len: 3.3, w: 0.8, dmg: 0.6, delay: 0.5 }),
+    b({ a: 0.55, len: 3.0, w: 0.75, dmg: 0.55, delay: 0.25 }), b({ a: -0.55, len: 3.0, w: 0.75, dmg: 0.55, delay: 0.75 })],
+  { body: { hp: 1.15 }, desc: 'A heavy main cannon with a crew of escorts.' });
+T('siren', 'Siren', 'Spammer', 3, 80, 'birdshot',
+  [b({ kind: 'freeze', len: 3.2, w: 1.7, cone: 1.5, rel: 1.6, pellets: 9, spread: 0.65, dmg: 0.5, bs: 0.6, spd: 1.15, life: 0.8, recoil: 2 })],
+  { desc: 'Blasts a wide sonic wave that slows enemies.' });
+
 // ---------- Tier 4 (Lv 110) ----------
 T('phoenix', 'Phoenix', 'Flame', 4, 110, 'fiveway',
   [...[-0.45, 0, 0.45].map((a) => b({ a, kind: 'flame', len: 3.0, w: 0.9, cone: 1.3, rel: 0.1, dmg: 0.17, pen: 3, spd: 0.55, life: 0.45, spread: 0.25, bs: 0.9, recoil: 0.1 })),

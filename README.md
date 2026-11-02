@@ -18,9 +18,9 @@ If the page can't reach a server, it runs the same simulation in the browser wit
 
 | Area | Details |
 |---|---|
-| Lobby | A compact 3D hub. Large pads open **Chests, Wheel, Skins Shop, Upgrades Shop, Tanks Shop**. Leaderboard boards show real players only (server data; offline they show just you). Drive into a portal to play. |
+| Lobby | A compact 3D hub with flat metal walls. Large pads spread around the room open **Skins Shop, Upgrades Shop, Chests, Tanks Shop, Wheel**. Drive into a portal to play. No leaderboards. |
 | Modes | **Spawn** (FFA), **Red VS Blue**, **4 Teams** |
-| Arena | Anchored shapes (they never move): yellow cubes, blue cubes, pink pentagons, purple hexagons and big cyan Alphas, richer toward the center. XP, gems, a 30s spawn shield, health regen, team bases. A **Lobby** button returns you to the hub; if you were hit by a tank in the last 10 seconds it turns red, and leaving (or disconnecting) counts as a kill for your attacker. |
+| Arena | Anchored shapes (they never move): yellow cubes, blue cubes, pink pentagons, purple hexagons and big cyan Alphas, richer toward the center. XP, gems, a 30s spawn shield, health regen, team bases. A **Lobby** button (bottom-left) returns you to the hub; if you were hit by a tank in the last 10 seconds it turns red, and leaving (or disconnecting) counts as a kill for your attacker. |
 | Tank tree | ~50 tanks over tiers Lv 15 / 30 / 42 / 110 (Double → Triway → Fiveway → Phoenix, Scout → Hitman → Ace/Shadow, Spammer, Side, Grinder/Spiker melee, Freezer, Flame, Railgun, Blast Lord, Orbitron…). Some cost gems, some come from quests, chests or the wheel. |
 | Keys | **Q** tank upgrades · **E** stats (**1-8**) · **F** auto fire · **R** auto spin · **C** turn 180° · **Shift** camera lock · **X** index · **G** gifts · **Enter** chat · WASD + mouse · right-drag rotates the camera · scroll zooms |
 | Progress | Persistent level (Lv 400 needs ~90K XP, like the original). Stat points scale with level, and stat caps can be raised in the Upgrades Shop. |
@@ -39,6 +39,7 @@ This basic launch has **no ads**. Things the Roblox game sells for Robux are fre
 ### CrazyGames SDK usage (`public/js/sdk.js`)
 
 - `loadingStart/Stop`, `gameplayStart/Stop` (on spawn, death and lobby), and `happytime` on kills, rank-ups and chests.
+- No leaderboards (removed from the lobby, the arena and the server).
 - `data.getItem/setItem` for saves (level, XP, gems, unlocks, quests). Every save is written to the CrazyGames data module **and** a localStorage mirror; on load the copy with the most progress wins. Level-ups save immediately.
 - `user.getUser` for the default name.
 - `game.inviteLink`, `showInviteButton`, `getInviteParam('room')` and `isInstantMultiplayer`, so invites land in the same server.

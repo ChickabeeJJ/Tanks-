@@ -53,9 +53,26 @@ const P = {
   tank: `<rect x="34" y="24" width="24" height="12" rx="3" fill="#7fd0ff"/><circle cx="26" cy="32" r="18" fill="#ff3b4f"/>`,
 };
 
+// Outline only the outer silhouette: dilate the icon, darken its own colours, draw the icon on top.
+// The rim therefore takes a dark shade of whatever colour it borders (like the original's icons).
+if (typeof document !== 'undefined' && !document.getElementById('icol-defs')) {
+  const d = document.createElement('div');
+  d.id = 'icol-defs';
+  d.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
+  d.innerHTML = `<svg width="0" height="0"><defs>
+    <filter id="icol" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
+      <feMorphology in="SourceGraphic" operator="dilate" radius="3.6" result="d"/>
+      <feComponentTransfer in="d" result="dk">
+        <feFuncR type="linear" slope="0.36"/><feFuncG type="linear" slope="0.36"/><feFuncB type="linear" slope="0.42"/>
+      </feComponentTransfer>
+      <feMerge><feMergeNode in="dk"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter></defs></svg>`;
+  document.body.appendChild(d);
+}
+
 export function ic(name, size = 24, extra = '') {
   const body = P[name] || P.star;
-  return `<svg class="ic ${extra}" width="${size}" height="${size}" viewBox="0 0 64 64" aria-hidden="true">${body}</svg>`;
+  return `<svg class="ic ${extra}" width="${size}" height="${size}" viewBox="-5 -5 74 74" aria-hidden="true"><g filter="url(#icol)">${body}</g></svg>`;
 }
 
 export const STAT_ICONS = ['sword', 'bullet', 'rocket', 'reload', 'heart', 'regen', 'boot', 'spikes'];

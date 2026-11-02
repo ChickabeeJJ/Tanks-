@@ -30,11 +30,6 @@ async function api() {
   G.api = apiBase(ws);
   return G.api;
 }
-G.fetchBoards = async () => {
-  const base = await api();
-  if (!base) return null;
-  try { return await (await fetch(new URL('api/leaderboard', base))).json(); } catch { return null; }
-};
 G.fetchRooms = async () => {
   const base = await api();
   if (!base) return [];

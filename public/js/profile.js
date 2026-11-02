@@ -78,19 +78,22 @@ export const QUESTS = {
   ],
 };
 
+// Playtime gifts (12, like the original). xpLv = fraction of the XP needed for your current level.
 export const GIFTS = [
-  { at: 60, r: { gems: 100 } }, { at: 180, r: { spins: 1 } }, { at: 300, r: { xpLv: 0.3 } },
-  { at: 480, r: { gems: 300 } }, { at: 720, r: { xpLv: 0.5 } }, { at: 960, r: { gems: 600 } },
-  { at: 1200, r: { spins: 2 } }, { at: 1500, r: { xpLv: 1 } }, { at: 1800, r: { gems: 1500 } },
+  { at: 60, r: { xpLv: 0.03 } }, { at: 150, r: { xpLv: 0.055 } }, { at: 240, r: { gems: 300 } }, { at: 360, r: { xpLv: 0.11 } },
+  { at: 600, r: { gems: 550 } }, { at: 900, r: { xpLv: 0.14 } }, { at: 1260, r: { xpLv: 0.27 } }, { at: 1680, r: { xpLv: 0.16 } },
+  { at: 2160, r: { gems: 900 } }, { at: 2640, r: { xpLv: 0.55 } }, { at: 3240, r: { gems: 1500 } }, { at: 3900, r: { xpLv: 2.7 }, mega: true },
 ];
 
 export const WHEEL = [
-  { id: 'xp1', label: 'XP', xpLv: 0.22, odds: 40, color: '#ff9f1c' },
-  { id: 'gem1', label: 'Gems', gems: 7500, odds: 20, color: '#2ec4f1' },
-  { id: 'xp2', label: 'XP', xpLv: 0.82, odds: 22, color: '#3bd16f' },
-  { id: 'ultra', label: 'Ultra [PERM]', tank: 'ultra', odds: 2, color: '#ff3d6e' },
-  { id: 'gem2', label: 'Gems', gems: 25000, odds: 12, color: '#b14cf0' },
-  { id: 'allspiker', label: 'Allspiker [PERM]', tank: 'allspiker', odds: 4, color: '#ffd23f' },
+  { id: 'xp1', label: 'XP', xpLv: 0.15, odds: 24, color: '#ffb020' },
+  { id: 'gem1', label: 'Gems', gems: 2500, odds: 18, color: '#25b8f0' },
+  { id: 'xp2', label: 'XP', xpLv: 0.4, odds: 16, color: '#36c95f' },
+  { id: 'allspiker', label: 'Allspiker', tank: 'allspiker', odds: 4, color: '#ff4f7a' },
+  { id: 'gem2', label: 'Gems', gems: 7500, odds: 12, color: '#9b5cff' },
+  { id: 'xp3', label: 'XP', xpLv: 0.85, odds: 14, color: '#ff7a2a' },
+  { id: 'ultra', label: 'Ultra', tank: 'ultra', odds: 2, color: '#e8455c' },
+  { id: 'gem3', label: 'Gems', gems: 15000, odds: 10, color: '#1fbfa6' },
 ];
 
 export const CHESTS = [

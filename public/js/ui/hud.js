@@ -31,7 +31,6 @@ export function createHUD(G) {
   </div>
   <div id="qpanel" class="hidden"></div>
   <div id="epanel" class="hidden"></div>
-  <div id="lb" class="hidden arena-only"></div>
   <div id="left">
     <div class="rbtn big yellow" id="b-store">${ic('basket', 50)}<span class="lbl">Store</span><span class="badge hidden"></span></div>
     <div class="rbtn big lobby-only" id="b-bag">${ic('box', 46)}<span class="lbl">Bag</span></div>
@@ -41,7 +40,6 @@ export function createHUD(G) {
       <div class="rbtn mini" id="b-settings" title="Settings">${ic('gear', 24)}</div>
       <div class="rbtn mini" id="b-invite" title="Invite friends">${ic('people', 24)}</div>
     </div>
-    <div class="rbtn wbtn orange arena-only" id="b-leave" title="Return to lobby">${ic('door', 26)}<span class="lbl lv">Lobby</span></div>
   </div>
   <div id="right">
     <div class="gems" id="gems" title="Gems">${ic('plus', 26)}<span class="v lbl">0</span>${ic('gem', 30)}</div>
@@ -51,6 +49,9 @@ export function createHUD(G) {
     </div>
     <div class="rbtn wbtn" id="b-rank"><span class="lbl rk">Rank 1</span>${ic('shield', 30)}<span class="badge hidden"></span></div>
     <div class="rbtn wbtn" id="xpad" title="Free XP (every 3 minutes)"><span class="lbl v">+0</span>${ic('star', 30)}</div>
+  </div>
+  <div id="bottomleft">
+    <div class="rbtn wbtn orange arena-only" id="b-leave" title="Return to lobby">${ic('door', 26)}<span class="lbl lv">Lobby</span></div>
   </div>
   <div id="bottomright">
     <div class="rbtn tog" id="t-fire" title="Auto fire (F)">${ic('burst', 30)}<span class="key l">F</span></div>
@@ -64,7 +65,7 @@ export function createHUD(G) {
 
   const els = {
     xpFill: $('#xpbar .fill', root), xpTxt: $('#xpbar .txt', root), lvl: $('#lvl', root), xpbar: $('#xpbar', root),
-    gems: $('#gems .v', root), q: $('#qpanel', root), e: $('#epanel', root), lb: $('#lb', root),
+    gems: $('#gems .v', root), q: $('#qpanel', root), e: $('#epanel', root),
     qBadge: $('#qbtn .badge', root), eBadge: $('#ebtn .badge', root), toasts: $('#toasts', root), qIcon: $('#qbtn .tico', root),
     giftsBadge: $('#b-gifts .badge', root), questBadge: $('#b-quest .badge', root), rankBadge: $('#b-rank .badge', root),
     rank: $('#b-rank .rk', root), xpad: $('#xpad .v', root), big: $('#bigmsg', root), gain: $('#xpgain', root),
@@ -119,7 +120,6 @@ export function createHUD(G) {
       root.querySelectorAll('.arena-only').forEach((el) => el.classList.toggle('hidden', mode !== 'arena'));
       root.querySelectorAll('.lobby-only').forEach((el) => el.classList.toggle('hidden', mode !== 'lobby'));
       if (mode !== 'arena') { this.closeQ(); this.closeE(); }
-      els.lb.classList.toggle('hidden', mode !== 'arena');
       this.setCombat(0);
     },
 
@@ -231,13 +231,7 @@ export function createHUD(G) {
       }
     },
 
-    renderLB(lb) {
-      if (!lb) return;
-      const max = Math.max(1, ...lb.rows.map((r) => r[1]));
-      els.lb.innerHTML = lb.rows.slice(0, 6).map((r, i) => `
-        <div class="r ${r[2] ? 'me' : ''}"><span class="lbl">${i + 1}</span><span class="n lbl">${esc(r[0])}</span><span class="v lbl">${r[1]}</span><div class="bar" style="width:${(r[1] / max) * 100}%"></div></div>`).join('')
-        + (lb.you > 6 ? `<div class="you lbl">You: #${lb.you} of ${lb.n}</div>` : '');
-    },
+    renderLB() { /* leaderboards removed */ },
 
     toast(text, cls = 'green', ms = 2200) {
       const el = document.createElement('div');

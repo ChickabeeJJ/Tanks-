@@ -154,21 +154,16 @@ export const LOBBY = {
   half: 40,
   padR: 6.4,
   pads: [
-    { id: 'chests', label: 'Chests', x: -11, z: -24, color: 0x6fe3ff, badge: 'New' },
-    { id: 'wheel', label: 'Wheel', x: 11, z: -24, color: 0xffd21f },
-    { id: 'skins', label: 'Skins Shop', x: -26, z: -9, color: 0x2ec8ff },
-    { id: 'upgrades', label: 'Upgrades Shop', x: -26, z: 7, color: 0x2ec8ff },
-    { id: 'tanks', label: 'Tanks Shop', x: -26, z: 23, color: 0x2ec8ff },
+    { id: 'skins', label: 'Skins Shop', x: -27, z: -12, color: 0x2ec8ff },
+    { id: 'upgrades', label: 'Upgrades Shop', x: -27, z: 12, color: 0x2ec8ff },
+    { id: 'chests', label: 'Chests', x: 0, z: -27, color: 0x6fe3ff, badge: 'New' },
+    { id: 'tanks', label: 'Tanks Shop', x: 27, z: -12, color: 0x2ec8ff },
+    { id: 'wheel', label: 'Wheel', x: 27, z: 12, color: 0xffd21f },
   ],
   portals: [
     { id: 'teams', label: 'Red VS Blue', sub: 'Teams', x: -15, z: 30, color: 0xff3048, color2: 0x2f9dff },
     { id: 'ffa', label: 'Spawn', sub: 'Free for all', x: 0, z: 33, color: 0xff2d7a, color2: 0xff8fb8, big: true },
     { id: 'four', label: '4 Teams', sub: 'New!', x: 15, z: 30, color: 0xffcc1a, color2: 0x3ee06a },
-  ],
-  boards: [
-    { id: 'kills', label: 'Kills', x: 35, z: -18, ry: -Math.PI / 2 },
-    { id: 'rank', label: 'Rank', x: 35, z: 0, ry: -Math.PI / 2 },
-    { id: 'level', label: 'Level', x: 35, z: 18, ry: -Math.PI / 2 },
   ],
 };
 
@@ -176,10 +171,11 @@ function wheelTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const ctx = c.getContext('2d');
-  const cols = ['#ff9f1c', '#2ec4f1', '#3bd16f', '#ff3d6e', '#b14cf0', '#ffd23f'];
-  for (let i = 0; i < 6; i++) {
+  const cols = ['#ffb020', '#25b8f0', '#36c95f', '#ff4f7a', '#9b5cff', '#ff7a2a', '#e8455c', '#1fbfa6'];
+  ctx.fillStyle = '#e09a00'; ctx.beginPath(); ctx.arc(128, 128, 128, 0, Math.PI * 2); ctx.fill();
+  for (let i = 0; i < 8; i++) {
     ctx.fillStyle = cols[i];
-    ctx.beginPath(); ctx.moveTo(128, 128); ctx.arc(128, 128, 126, (i / 6) * Math.PI * 2, ((i + 1) / 6) * Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(128, 128); ctx.arc(128, 128, 116, (i / 8) * Math.PI * 2, ((i + 1) / 8) * Math.PI * 2); ctx.fill();
   }
   ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(128, 128, 30, 0, Math.PI * 2); ctx.fill();
   const t = new THREE.CanvasTexture(c);
@@ -222,30 +218,14 @@ export function buildLobby(skinId) {
   root.add(floor);
 
   // striped back walls
-  const st = stripeTexture('#8fd0ff', '#ffffff').clone();
-  st.needsUpdate = true;
-  st.repeat.set(10, 1);
-  const wallMat = new THREE.MeshStandardMaterial({ map: st, roughness: 0.9 });
+  // flat brushed-metal walls
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xc9d4e0, metalness: 0.22, roughness: 0.38, emissive: 0x7d8a99, emissiveIntensity: 0.18 });
   for (const [x, z, ry] of [[0, -H - 6, 0], [0, H + 14, Math.PI], [-H - 6, 0, Math.PI / 2], [H + 6, 0, -Math.PI / 2]]) {
     const w = new THREE.Mesh(new THREE.PlaneGeometry(H * 2 + 40, 26), wallMat);
     w.position.set(x, 13, z);
     w.rotation.y = ry;
     root.add(w);
   }
-
-  // confetti on the floor
-  const N = 240;
-  const conf = new THREE.InstancedMesh(new THREE.CircleGeometry(0.45, 5), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), N);
-  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), col = new THREE.Color();
-  const pal = [0xff6fa0, 0x5cc4ff, 0xb37bff, 0xff9fc4, 0x7fdcff];
-  for (let i = 0; i < N; i++) {
-    e.set(-Math.PI / 2, 0, Math.random() * 6);
-    q.setFromEuler(e);
-    m4.compose(new THREE.Vector3((Math.random() * 2 - 1) * H, 0.03, (Math.random() * 2 - 1) * H), q, new THREE.Vector3(1, 1, 1).multiplyScalar(0.6 + Math.random() * 0.8));
-    conf.setMatrixAt(i, m4);
-    conf.setColorAt(i, col.setHex(pal[i % pal.length]));
-  }
-  root.add(conf);
 
   const anim = [];
   const PR = LOBBY.padR;
@@ -333,31 +313,5 @@ export function buildLobby(skinId) {
     root.add(g);
   }
 
-  // leaderboards
-  const boards = {};
-  for (const b of LOBBY.boards) {
-    const c = boardCanvas(b.label, []);
-    const tx = new THREE.CanvasTexture(c);
-    tx.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(new THREE.BoxGeometry(12, 15, 0.8), [
-      new THREE.MeshStandardMaterial({ color: 0xd9e4ef }), new THREE.MeshStandardMaterial({ color: 0xd9e4ef }),
-      new THREE.MeshStandardMaterial({ color: 0xd9e4ef }), new THREE.MeshStandardMaterial({ color: 0xd9e4ef }),
-      new THREE.MeshStandardMaterial({ map: tx }), new THREE.MeshStandardMaterial({ color: 0xd9e4ef }),
-    ]);
-    m.position.set(b.x, 9, b.z);
-    m.rotation.y = b.ry;
-    m.castShadow = true;
-    const post = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 1.5), new THREE.MeshStandardMaterial({ color: 0x3fb2f5 }));
-    post.position.set(b.x, 1, b.z);
-    post.rotation.y = b.ry;
-    root.add(m, post);
-    boards[b.id] = { tex: tx, canvas: c, label: b.label };
-  }
-
-  // the "4 Teams" update board (like the in-game event card)
-  const upd = textSprite('4 Teams mode is here!', { size: 44, bg: 'rgba(40,46,60,0.88)', height: 2 });
-  upd.position.set(24, 6, -28);
-  root.add(upd);
-
-  return { root, anim, boards };
+  return { root, anim, boards: {} };
 }

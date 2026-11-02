@@ -1,6 +1,6 @@
 // Lobby hub: drive around, step on pads to open shops, drive into portals to play.
 import * as THREE from '../vendor/three.module.min.js';
-import { buildLobby, LOBBY, boardCanvas } from './render/scene.js';
+import { buildLobby, LOBBY } from './render/scene.js';
 import { buildTank, disposeTank } from './render/models.js';
 import { Input } from './input.js';
 import { profile } from './profile.js';
@@ -26,7 +26,6 @@ export class Lobby {
     this.makeTank();
     G.camRig.yaw = 0;
     G.camRig.snap(this.pos.x, this.pos.z);
-    this.loadBoards();
   }
 
   makeTank() {
@@ -36,26 +35,6 @@ export class Lobby {
   }
 
   setSkin() { this.makeTank(); }
-
-  async loadBoards() {
-    const data = await this.G.fetchBoards();
-    const d = profile.d;
-    const me = d.name || 'You';
-    // Real data only: the server's global boards when online, otherwise just your own stats.
-    const boards = data || { kills: [], level: [], rank: [] };
-    const put = (rows, v) => {
-      rows = rows.filter((r) => r[0] !== me);
-      rows.push([me, v]);
-      return rows.sort((a, b) => b[1] - a[1]);
-    };
-    const all = { kills: put(boards.kills, d.totalKills), level: put(boards.level, d.level), rank: put(boards.rank, d.rank.idx) };
-    if (!this.env) return;
-    for (const [k, b] of Object.entries(this.env.boards)) {
-      const c = boardCanvas(b.label, all[k], k === 'kills' ? '#2fa8ff' : k === 'rank' ? '#2fa8ff' : '#2fc0ff');
-      b.tex.image = c;
-      b.tex.needsUpdate = true;
-    }
-  }
 
   stop() {
     if (!this.env) return;

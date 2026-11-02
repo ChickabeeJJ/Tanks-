@@ -11,7 +11,6 @@ import { cleanName, cleanChat } from '../public/shared/filter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PUBLIC = path.join(__dirname, '..', 'public');
-const DATA = path.join(__dirname, 'data');
 const PORT = Number(process.env.PORT) || 3000;
 
 const MIME = {
@@ -19,33 +18,6 @@ const MIME = {
   '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml', '.ico': 'image/x-icon', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav',
 };
-
-// ------------------------------------------------------------------ leaderboards (lobby boards)
-const boards = { kills: new Map(), level: new Map(), rank: new Map() };
-try {
-  const saved = JSON.parse(fs.readFileSync(path.join(DATA, 'leaderboards.json'), 'utf8'));
-  for (const k of Object.keys(boards)) for (const [uid, name, v] of saved[k] || []) boards[k].set(uid, { name, v });
-} catch { /* first run */ }
-
-function submitBoard(kind, uid, name, v) {
-  if (!uid || !Number.isFinite(v)) return;
-  const cur = boards[kind].get(uid);
-  if (!cur || v >= cur.v || cur.name !== name) boards[kind].set(uid, { name, v: Math.max(v, cur ? cur.v : 0) });
-}
-function topBoard(kind, n = 10) {
-  return [...boards[kind].entries()].sort((a, b) => b[1].v - a[1].v).slice(0, n).map(([, e]) => [e.name, e.v]);
-}
-function saveBoards() {
-  try {
-    fs.mkdirSync(DATA, { recursive: true });
-    const out = {};
-    for (const k of Object.keys(boards)) {
-      out[k] = [...boards[k].entries()].sort((a, b) => b[1].v - a[1].v).slice(0, 200).map(([uid, e]) => [uid, e.name, e.v]);
-    }
-    fs.writeFileSync(path.join(DATA, 'leaderboards.json'), JSON.stringify(out));
-  } catch (e) { console.warn('could not save leaderboards', e.message); }
-}
-setInterval(saveBoards, 60_000).unref();
 
 // ------------------------------------------------------------------ rooms
 let roomSeq = 1;
@@ -72,15 +44,10 @@ class Room {
     client.tankId = t.id;
     client.cs = {};
     this.clients.add(client);
-    submitBoard('level', t.uid, t.name, t.level);
-    if (Number.isFinite(msg.rank)) submitBoard('rank', t.uid, t.name, msg.rank);
-    if (Number.isFinite(msg.totalKills)) submitBoard('kills', t.uid, t.name, msg.totalKills);
     client.send({ t: 'welcome', id: t.id, room: this.id, mode: this.mode, half: this.world.half, teams: MODES[this.mode].teams });
   }
   leave(client) {
     if (!this.clients.delete(client)) return;
-    const t = this.world.tanks.get(client.tankId);
-    if (t) submitBoard('level', t.uid, t.name, t.level);
     this.world.leaveTank(client.tankId); // leaving mid-fight gives the attacker the kill
     if (!this.clients.size) this.emptySince = Date.now();
   }
@@ -91,11 +58,6 @@ class Room {
     for (const c of this.clients) {
       const snap = this.world.snapshotFor(c.tankId, c.cs);
       if (!snap) continue;
-      if (snap.me.kd && c.totalKills !== undefined) {
-        c.totalKills += snap.me.kd;
-        const t = this.world.tanks.get(c.tankId);
-        if (t) submitBoard('kills', t.uid, t.name, c.totalKills);
-      }
       c.send({ t: 's', ...snap });
     }
   }
@@ -142,9 +104,6 @@ function sendJson(res, code, obj) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
   if (url.pathname === '/api/ping') return sendJson(res, 200, { ok: true, rooms: rooms.size });
-  if (url.pathname === '/api/leaderboard') {
-    return sendJson(res, 200, { kills: topBoard('kills'), level: topBoard('level'), rank: topBoard('rank') });
-  }
   if (url.pathname === '/api/rooms') {
     return sendJson(res, 200, [...rooms.values()].map((r) => ({ id: r.id, mode: r.mode, players: r.humans, max: MODES[r.mode].maxHumans })));
   }
@@ -164,7 +123,7 @@ const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
 
 wss.on('connection', (ws) => {
   const client = {
-    ws, room: null, tankId: null, cs: null, lastChat: 0, msgs: 0, totalKills: 0,
+    ws, room: null, tankId: null, cs: null, lastChat: 0, msgs: 0,
     send(o) { if (ws.readyState === 1) ws.send(JSON.stringify(o)); },
   };
   const rate = setInterval(() => { client.msgs = 0; }, 1000);
@@ -179,7 +138,6 @@ wss.on('connection', (ws) => {
       case 'join': {
         if (room) room.leave(client);
         const mode = MODES[m.mode] ? m.mode : 'ffa';
-        client.totalKills = Number(m.totalKills) || 0;
         findRoom(mode, m.room).join(client, m);
         break;
       }
@@ -217,5 +175,3 @@ server.listen(PORT, () => {
   console.log(`Tanks server running on http://localhost:${PORT}  (ws path /ws)`);
 });
 
-process.on('SIGINT', () => { saveBoards(); process.exit(0); });
-process.on('SIGTERM', () => { saveBoards(); process.exit(0); });
