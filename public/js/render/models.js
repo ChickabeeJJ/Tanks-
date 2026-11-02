@@ -28,6 +28,8 @@ const mats = {
   flame: new THREE.MeshStandardMaterial({ color: 0x7a7f8c, roughness: 0.6, metalness: 0.2 }),
   rail: new THREE.MeshStandardMaterial({ color: 0x2a2f3a, roughness: 0.4, metalness: 0.4 }),
   cap: new THREE.MeshBasicMaterial({ color: 0x0b0f1a }),
+  railCap: new THREE.MeshBasicMaterial({ color: new THREE.Color(0.6, 2.4, 3.0), toneMapped: false }),
+  railRing: new THREE.MeshBasicMaterial({ color: new THREE.Color(0.4, 1.8, 2.6), toneMapped: false }),
   spike: new THREE.MeshStandardMaterial({ color: 0x55596a, roughness: 0.5, metalness: 0.3 }),
   shadow: new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.16, depthWrite: false }),
 };
@@ -78,7 +80,16 @@ export function buildTank(tankId, skinId = 'default', team = 0, opts = {}) {
     m.position.set(start + L / 2, by, ox);
     m.castShadow = true;
     piv.add(m);
-    const cap = new THREE.Mesh(geo.cap, mats.cap);
+    const cap = new THREE.Mesh(geo.cap, b.kind === 'rail' ? mats.railCap : mats.cap);
+    if (b.kind === 'rail') {
+      // neon coil rings along the rail barrel
+      for (const f of [0.35, 0.6, 0.85]) {
+        const ring = new THREE.Mesh(geo.barrel, mats.railRing);
+        ring.scale.set(L * 0.06, w * 1.12, w * 1.12);
+        ring.position.set(start + L * f, by, ox);
+        piv.add(ring);
+      }
+    }
     const cw = w * (b.cone || 1) * 0.82;
     cap.scale.set(cw, cw, cw);
     cap.position.set(start + L + 0.01, by, ox);
@@ -160,27 +171,60 @@ export function shapeMaterial(type) {
 export const SHAPE_TYPES = SHAPE_LIST;
 
 // ------------------------------------------------------------------ billboard health bar
+// Layers: dark frame, dark track, pale "damage trail", coloured fill, glossy highlight.
+// On damage the fill drops quickly and the trail drains down to it after a short pause.
 export class Bar {
-  constructor(w, h, color, bg = 0x5b6270) {
+  constructor(w, h, color) {
     this.group = new THREE.Group();
     this.w = w;
-    const bgm = new THREE.MeshBasicMaterial({ color: bg, transparent: true, opacity: 0.85, depthWrite: false, depthTest: false });
-    const fgm = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false, depthTest: false });
-    this.bg = new THREE.Mesh(geo.plane, bgm);
-    this.bg.scale.set(w + 0.3, h + 0.3, 1);
-    this.fg = new THREE.Mesh(geo.plane, fgm);
-    this.fg.scale.set(w, h, 1);
-    this.bg.renderOrder = 10;
-    this.fg.renderOrder = 11;
-    this.group.add(this.bg, this.fg);
-    this.value = 1;
+    this.h = h;
+    const mk = (c, o, order) => {
+      const m = new THREE.Mesh(geo.plane, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: o, depthWrite: false, depthTest: false }));
+      m.renderOrder = order;
+      this.group.add(m);
+      return m;
+    };
+    const pad = Math.min(0.22, h * 0.4);
+    this.frame = mk(0x1b2333, 0.9, 10);
+    this.frame.scale.set(w + pad * 2, h + pad * 2, 1);
+    this.track = mk(0x4a5468, 0.95, 11);
+    this.track.scale.set(w, h, 1);
+    this.trail = mk(0xfff1c9, 1, 12);
+    this.fill = mk(color, 1, 13);
+    this.shine = mk(0xffffff, 0.28, 14);
+    this.shine.position.y = h * 0.22;
+    this.target = 1;
+    this.shown = 1;
+    this.trailV = 1;
+    this.hold = 0;
+    this.layout();
+  }
+  place(mesh, v, hScale = 1) {
+    v = Math.max(0.0001, v);
+    mesh.scale.set(this.w * v, this.h * hScale, 1);
+    mesh.position.x = -(this.w * (1 - v)) / 2;
+  }
+  layout() {
+    this.place(this.trail, this.trailV);
+    this.place(this.fill, this.shown);
+    this.place(this.shine, this.shown, 0.32);
   }
   set(v) {
     v = Math.max(0, Math.min(1, v));
-    this.value = v;
-    this.fg.scale.x = Math.max(0.001, this.w * v);
-    this.fg.position.x = -(this.w * (1 - v)) / 2;
+    if (v < this.target - 0.0001) this.hold = 0.28; // pause before the trail drains
+    this.target = v;
   }
-  color(c) { this.fg.material.color.setHex(c); }
-  dispose() { this.bg.material.dispose(); this.fg.material.dispose(); }
+  snap(v) { this.target = this.shown = this.trailV = Math.max(0, Math.min(1, v)); this.layout(); }
+  update(dt) {
+    // fill: fast drop, smooth refill
+    const k = this.target < this.shown ? 22 : 6;
+    this.shown += (this.target - this.shown) * Math.min(1, k * dt);
+    if (this.trailV < this.shown) this.trailV = this.shown;
+    if (this.hold > 0) this.hold -= dt;
+    else if (this.trailV > this.shown) this.trailV = Math.max(this.shown, this.trailV - dt * 0.9);
+    this.layout();
+  }
+  get value() { return this.target; }
+  color(c) { this.fill.material.color.setHex(c); }
+  dispose() { for (const m of [this.frame, this.track, this.trail, this.fill, this.shine]) m.material.dispose(); }
 }

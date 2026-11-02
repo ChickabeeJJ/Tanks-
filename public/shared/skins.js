@@ -17,13 +17,13 @@ export const SKINS = [
   { id: 'rainbow', name: 'Rainbow', price: 30000, base: '#ff0000', pattern: 'rainbow' },
   { id: 'gold', name: 'Gold', price: 50000, base: '#ffcf3a', alt: '#fff3b0', pattern: 'shine' },
   { id: 'frost', name: 'Frost (Event)', price: -1, base: '#7fd7ff', alt: '#ffffff', pattern: 'snow' },
-  // Chest-exclusive skins (price -2). Frozen Chest:
+  // Chest-exclusive skins (price -2). Frost Chest:
   { id: 'glacier', name: 'Glacier', price: -2, rarity: 'common', base: '#9fdcff', alt: '#ffffff', pattern: 'cracks' },
   { id: 'aurora', name: 'Aurora', price: -2, rarity: 'rare', base: '#1b2a5c', alt: '#3cf0b0', alt2: '#a05cff', pattern: 'aurora' },
   { id: 'blizzard', name: 'Blizzard', price: -2, rarity: 'epic', base: '#2456c9', alt: '#ffffff', pattern: 'snow' },
   { id: 'diamond', name: 'Diamond', price: -2, rarity: 'legendary', base: '#5fe3ff', alt: '#e9fdff', pattern: 'shine' },
   { id: 'nebula', name: 'Nebula', price: -2, rarity: 'mythic', base: '#2a0f4f', alt: '#ff8ff0', pattern: 'stars' },
-  // Lava Chest:
+  // Molten Chest:
   { id: 'ember', name: 'Ember', price: -2, rarity: 'common', base: '#5a1a10', alt: '#ff8a2a', pattern: 'cracks' },
   { id: 'magma', name: 'Magma', price: -2, rarity: 'rare', base: '#d63a12', alt: '#ff9d1c', alt2: '#7a1508', pattern: 'blobs' },
   { id: 'inferno', name: 'Inferno', price: -2, rarity: 'epic', base: '#ff3b1c', alt: '#ffd21f', pattern: 'zigzag' },

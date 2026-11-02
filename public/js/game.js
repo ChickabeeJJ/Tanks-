@@ -26,6 +26,11 @@ const BULLET_COLORS = { 0: 0x5cc8ff, 1: 0x5cc8ff, 2: 0xff5a6a, 3: 0x5fe07a, 4: 0
 const K_FLAME = BULLET_KINDS.indexOf('flame');
 const K_FREEZE = BULLET_KINDS.indexOf('freeze');
 const K_RAIL = BULLET_KINDS.indexOf('rail');
+const UP_Z = new THREE.Vector3(0, 0, 1);
+const RAIL_CORE = new THREE.Color(1.6, 3.2, 3.6); // HDR: blooms
+const RAIL_GLOW = new THREE.Color(0.2, 1.4, 2.4);
+const RAIL_CORE_E = new THREE.Color(3.4, 1.5, 2.0);
+const RAIL_GLOW_E = new THREE.Color(2.4, 0.3, 0.8);
 const K_BLAST = BULLET_KINDS.indexOf('blast');
 const K_ORBIT = BULLET_KINDS.indexOf('orbit');
 const CONFETTI = [0xff3d6e, 0xffd23f, 0x3fb2f5, 0x5be37a, 0xb14cf0, 0xff9f1c, 0x3fe3f2];
@@ -58,6 +63,7 @@ export class Arena {
     this.m4 = new THREE.Matrix4();
     this.q = new THREE.Quaternion();
     this.col = new THREE.Color();
+    this.scl = new THREE.Vector3();
   }
 
   // ------------------------------------------------------------------ lifecycle
@@ -102,7 +108,7 @@ export class Arena {
     this.root.add(buildArena(this.half, this.modeDef));
     this.buildPools();
     this.ready = true;
-    this.G.hud.toast(this.online ? `Joined ${this.modeDef.name}!` : `${this.modeDef.name} - playing with bots (offline)`, 'blue', 2600);
+    this.G.hud.toast(`Joined ${this.modeDef.name}!`, 'blue', 2600);
     if (this.online) SDK.showInviteButton({ room: this.roomId, mode: m.mode });
   }
 
@@ -143,12 +149,21 @@ export class Arena {
       this.root.add(m);
       return m;
     });
-    this.shapeBars = [];
+    this.shapeBars = []; // free pool
+    this.shapeBarById = new Map();
     this.bulletMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 14, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 }), 3000);
     this.bulletMesh.count = 0;
     this.bulletMesh.frustumCulled = false;
     this.bulletMesh.castShadow = true;
     this.root.add(this.bulletMesh);
+    // railgun beams: bright core + additive glow (HDR colours feed the bloom)
+    const beam = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true);
+    beam.rotateX(Math.PI / 2); // along +z
+    this.railCore = new THREE.InstancedMesh(beam, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), 64);
+    this.railGlow = new THREE.InstancedMesh(beam, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), 64);
+    for (const m of [this.railCore, this.railGlow]) { m.count = 0; m.frustumCulled = false; this.root.add(m); }
+    this.railBeamGeo = beam;
+    this.streaks = [];
     // particles (pops, confetti, deaths)
     this.parts = [];
     this.partMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }), 1200);
@@ -323,6 +338,35 @@ export class Arena {
       const s = SHAPES[SHAPE_LIST[a]];
       this.burst(x, z, s.color, a >= 3 ? 16 : 7, a >= 3 ? 0.9 : 0.45, a >= 3 ? 14 : 9);
       Audio.pop(a >= 3);
+    } else if (type === FX.RAIL) {
+      // long neon streak along the whole shot path, fading out
+      const [, sx, sz, ang, range, owner, team] = f;
+      const mine = owner === this.myId;
+      const ally = this.teams && team === (this.me && this.me.team);
+      const core = mine || ally ? RAIL_CORE : RAIL_CORE_E;
+      const glow = mine || ally ? RAIL_GLOW : RAIL_GLOW_E;
+      const dir = this.tmpV.set(Math.cos(ang), 0, Math.sin(ang));
+      const mid = new THREE.Vector3(sx + dir.x * range / 2, 1.1, sz + dir.z * range / 2);
+      const q = new THREE.Quaternion().setFromUnitVectors(UP_Z, dir);
+      const mk = (c, rad, op, add) => {
+        const m = new THREE.Mesh(this.railBeamGeo, new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: op, depthWrite: false, toneMapped: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending }));
+        m.position.copy(mid);
+        m.quaternion.copy(q);
+        m.scale.set(rad, rad, range);
+        this.root.add(m);
+        this.streaks.push({ m, t: 0, rad, op });
+      };
+      mk(core, 0.22, 0.95, false);
+      mk(glow, 0.75, 0.45, true);
+      if (mine) Audio.boom();
+    } else if (type === FX.HIT) {
+      // bullets cancelling each other: small white puff + sparks
+      const m = new THREE.Mesh(this.puffGeo || (this.puffGeo = new THREE.SphereGeometry(1, 12, 8)), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false }));
+      m.position.set(x, 1.1, z);
+      this.root.add(m);
+      this.blasts.push({ m, t: 0, R: 0.9 + a * 2.2, dur: 0.22, op: 0.85, shared: true });
+      this.burst(x, z, 0xffffff, 5, 0.22, 7, 3, 0.3, 1.1);
+      Audio.hit();
     } else if (type === FX.BLAST) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), new THREE.MeshBasicMaterial({ color: 0xffb340, transparent: true, opacity: 0.6, depthWrite: false }));
       m.position.set(x, 1, z);
@@ -372,12 +416,21 @@ export class Arena {
     pm.count = n;
     pm.instanceMatrix.needsUpdate = true;
     if (pm.instanceColor) pm.instanceColor.needsUpdate = true;
+    this.streaks = this.streaks.filter((st) => {
+      st.t += dt;
+      const k = st.t / 0.55;
+      if (k >= 1) { this.root.remove(st.m); st.m.material.dispose(); return false; }
+      st.m.material.opacity = st.op * (1 - k) * (1 - k);
+      const w = st.rad * (1 - k * 0.7);
+      st.m.scale.x = w; st.m.scale.y = w;
+      return true;
+    });
     this.blasts = this.blasts.filter((b) => {
       b.t += dt;
-      const k = b.t / 0.4;
-      if (k >= 1) { this.root.remove(b.m); b.m.geometry.dispose(); b.m.material.dispose(); return false; }
-      b.m.scale.setScalar(b.R * (0.3 + 0.7 * k));
-      b.m.material.opacity = 0.6 * (1 - k);
+      const k = b.t / (b.dur || 0.4);
+      if (k >= 1) { this.root.remove(b.m); if (!b.shared) b.m.geometry.dispose(); b.m.material.dispose(); return false; }
+      b.m.scale.setScalar(b.R * (0.3 + 0.7 * Math.sqrt(k)));
+      b.m.material.opacity = (b.op || 0.6) * (1 - k);
       return true;
     });
   }
@@ -567,6 +620,7 @@ export class Arena {
       const R = v.model.R;
       const bx = x - fw.x * (R + 1.6), bz = z - fw.z * (R + 1.6);
       v.hp.set(b[4] / 100);
+      v.hp.update(dt);
       const showHp = !shielded && (id === this.myId || b[4] < 100);
       v.hp.group.visible = showHp && op > 0.2;
       v.hp.group.position.set(bx, 0.6, bz);
@@ -593,6 +647,7 @@ export class Arena {
     const counts = [0, 0, 0, 0, 0];
     const aSh = A.shMap || (A.shMap = new Map(A.sh.map((s) => [s[0], s])));
     let barN = 0;
+    const usedBars = new Set();
     const cx = this.G.camRig.cur.x, cz = this.G.camRig.cur.z;
     for (const s of B.sh) {
       const a = aSh.get(s[0]) || s;
@@ -604,10 +659,17 @@ export class Arena {
       this.m4.compose(this.tmpV.set(x, 0, z), this.q, new THREE.Vector3(1, 1, 1));
       mesh.setMatrixAt(counts[ti]++, this.m4);
       if (s[5] < 100 && barN < 40 && Math.abs(x - cx) < 70 && Math.abs(z - cz) < 70) {
-        let bar = this.shapeBars[barN];
-        if (!bar) { bar = new Bar(3, 0.45, 0x5fe07a); this.shapeBars.push(bar); this.root.add(bar.group); }
+        // bars stay attached to their shape so the damage trail animates correctly
+        let bar = this.shapeBarById.get(s[0]);
+        if (!bar) {
+          bar = this.shapeBars.pop() || (() => { const nb = new Bar(3, 0.42, 0x5fe07a); this.root.add(nb.group); return nb; })();
+          bar.snap(Math.min(1, s[5] / 100 + 0.08));
+          this.shapeBarById.set(s[0], bar);
+        }
+        usedBars.add(s[0]);
         bar.group.visible = true;
         bar.set(s[5] / 100);
+        bar.update(dt);
         const def = SHAPES[SHAPE_LIST[ti]];
         bar.group.scale.setScalar(ti === 4 ? 2 : 1);
         bar.group.position.set(x, def.h + 1.4, z);
@@ -615,13 +677,18 @@ export class Arena {
         barN++;
       }
     }
-    for (let i = barN; i < this.shapeBars.length; i++) this.shapeBars[i].group.visible = false;
+    for (const [id, bar] of this.shapeBarById) {
+      if (usedBars.has(id)) continue;
+      bar.group.visible = false;
+      this.shapeBarById.delete(id);
+      this.shapeBars.push(bar);
+    }
     this.shapeMeshes.forEach((m, i) => { m.count = counts[i]; m.instanceMatrix.needsUpdate = true; });
 
     // --- bullets
     const aBl = A.blMap || (A.blMap = new Map(A.bl.map((b) => [b[0], b])));
     const bm = this.bulletMesh;
-    let n = 0;
+    let n = 0, rn = 0;
     const myTeam = this.me ? this.me.team : 0;
     for (const b of B.bl) {
       if (n >= 3000) break;
@@ -631,8 +698,25 @@ export class Arena {
       let color = BULLET_COLORS[b[5] === 0 && this.teams ? myTeam : b[5]] || 0x5cc8ff;
       if (k === K_FLAME) color = Math.random() < 0.5 ? 0xffa030 : 0xffd23f;
       else if (k === K_FREEZE) color = 0xe8fbff;
-      else if (k === K_RAIL) color = 0x9ff4ff;
-      else if (k === K_BLAST) color = b[5] === 0 ? 0xffb340 : 0xff7040;
+      else if (k === K_RAIL) {
+        // neon beam stretched back along its flight direction
+        let dx = b[1] - a[1], dz = b[2] - a[2];
+        let len = Math.hypot(dx, dz);
+        if (len < 0.01) continue;
+        dx /= len; dz /= len;
+        const L = 16, rad = Math.max(0.28, r * 0.9);
+        const enemy = b[5] !== 0 && !(this.teams && b[5] === myTeam);
+        this.q.setFromUnitVectors(UP_Z, this.tmpV.set(dx, 0, dz));
+        const cxp = x - dx * L * 0.5, czp = z - dz * L * 0.5;
+        this.m4.compose(this.tmpV.set(cxp, 1.1, czp), this.q, this.scl.set(rad, rad, L));
+        this.railCore.setMatrixAt(rn, this.m4);
+        this.railCore.setColorAt(rn, enemy ? RAIL_CORE_E : RAIL_CORE);
+        this.m4.compose(this.tmpV.set(cxp, 1.1, czp), this.q, this.scl.set(rad * 2.6, rad * 2.6, L * 1.04));
+        this.railGlow.setMatrixAt(rn, this.m4);
+        this.railGlow.setColorAt(rn, enemy ? RAIL_GLOW_E : RAIL_GLOW);
+        rn++;
+        continue;
+      } else if (k === K_BLAST) color = b[5] === 0 ? 0xffb340 : 0xff7040;
       else if (k === K_ORBIT && b[5] === 0) color = 0x7fe0ff;
       this.m4.makeScale(r, r, r);
       this.m4.setPosition(x, Math.max(r, 0.9), z);
@@ -643,6 +727,11 @@ export class Arena {
     bm.count = n;
     bm.instanceMatrix.needsUpdate = true;
     if (bm.instanceColor) bm.instanceColor.needsUpdate = true;
+    for (const m of [this.railCore, this.railGlow]) {
+      m.count = rn;
+      m.instanceMatrix.needsUpdate = true;
+      if (m.instanceColor) m.instanceColor.needsUpdate = true;
+    }
   }
 
   drawShieldDecal(n) {

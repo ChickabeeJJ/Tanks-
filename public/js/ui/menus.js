@@ -377,6 +377,28 @@ export function createMenus(G) {
           lvLayer.innerHTML = rowsY.map(([y, lv]) => `<div class="lvline lbl" style="top:${y - pane.scrollTop - 26}px">Level ${lv}</div>`).join('');
         };
         pane.addEventListener('scroll', drawLevels);
+        // drag the tree around (mouse or touch); a real drag swallows the click so tanks aren't selected by accident
+        let drag = null;
+        pane.addEventListener('pointerdown', (e) => {
+          if (e.button !== 0) return;
+          drag = { x: e.clientX, y: e.clientY, sl: pane.scrollLeft, st: pane.scrollTop, moved: false, id: e.pointerId };
+          pane.classList.add('grabbing');
+        });
+        pane.addEventListener('pointermove', (e) => {
+          if (!drag || e.pointerId !== drag.id) return;
+          const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+          if (!drag.moved && Math.hypot(dx, dy) > 5) { drag.moved = true; try { pane.setPointerCapture(e.pointerId); } catch { /* */ } }
+          if (drag.moved) { pane.scrollLeft = drag.sl - dx; pane.scrollTop = drag.st - dy; }
+        });
+        const endDrag = (e) => {
+          if (!drag) return;
+          if (drag.moved) { const stop = (ev) => { ev.stopPropagation(); ev.preventDefault(); }; pane.addEventListener('click', stop, { capture: true, once: true }); }
+          drag = null;
+          pane.classList.remove('grabbing');
+          try { pane.releasePointerCapture(e.pointerId); } catch { /* */ }
+        };
+        pane.addEventListener('pointerup', endDrag);
+        pane.addEventListener('pointercancel', endDrag);
         drawList();
         requestAnimationFrame(drawTree);
       },
@@ -496,18 +518,44 @@ export function createMenus(G) {
 
   // ------------------------------------------------------------------ chests (skins) + casino opening
   function chestArt(c, size = 150) {
-    // original chest illustration, tinted per chest
-    const dk = c.dark, lt = c.color;
-    return `<svg class="chest-art" width="${size}" height="${size}" viewBox="0 0 160 160">
-      <defs><linearGradient id="cb-${c.id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${lt}"/><stop offset="1" stop-color="${dk}"/></linearGradient></defs>
-      <ellipse cx="80" cy="142" rx="58" ry="9" fill="rgba(0,0,0,.18)"/>
-      <g class="lid"><path d="M22 70c0-30 22-44 58-44s58 14 58 44z" fill="url(#cb-${c.id})" stroke="${dk}" stroke-width="5" stroke-linejoin="round"/>
-        <path d="M70 27h20v43H70z" fill="#ffd21f" stroke="#a35f00" stroke-width="4"/></g>
-      <rect x="22" y="70" width="116" height="66" rx="8" fill="url(#cb-${c.id})" stroke="${dk}" stroke-width="5"/>
-      <path d="M70 70h20v66H70z" fill="#ffd21f" stroke="#a35f00" stroke-width="4"/>
-      <rect x="66" y="78" width="28" height="30" rx="6" fill="#fff3b0" stroke="#a35f00" stroke-width="4"/>
-      <circle cx="80" cy="90" r="5" fill="#a35f00"/><path d="M80 92v9" stroke="#a35f00" stroke-width="4" stroke-linecap="round"/>
-      <path d="M32 80h30M32 92h22" stroke="rgba(255,255,255,.45)" stroke-width="5" stroke-linecap="round"/>
+    // Original chest illustrations: Frost Chest (ice + snow) and Molten Chest (obsidian + lava).
+    const frost = c.id === 'frozen';
+    const id = c.id;
+    const body = frost ? ['#d9f6ff', '#7fd3f5', '#3a9bd0'] : ['#5b4a5e', '#33263a', '#1c1422'];
+    const plank = frost ? 'rgba(255,255,255,.45)' : 'rgba(255,140,60,.18)';
+    const edge = frost ? '#2a7fb0' : '#120a18';
+    const deco = frost
+      ? `<path d="M30 52c6-14 20-22 50-22s44 8 50 22c-8-4-12 2-17-2s-10 3-15-1-9 3-16-1-10 4-17 0-12 3-17-1-9 4-18 5z" fill="#ffffff"/>
+         ${[38, 52, 66, 94, 108, 122].map((x, i) => `<path d="M${x} 70l3 ${8 + (i % 3) * 4}l3 -${8 + (i % 3) * 4}z" fill="#e8fbff" opacity=".95"/>`).join('')}
+         <path d="M14 128l8-22 6 22zM132 128l7-26 8 26zM122 132l5-14 5 14z" fill="#bfefff" stroke="#5fb8e0" stroke-width="2"/>
+         <circle cx="40" cy="98" r="2.5" fill="#fff"/><circle cx="118" cy="88" r="2" fill="#fff"/><circle cx="104" cy="118" r="1.8" fill="#fff"/>`
+      : `<path d="M34 92l10 8-4 10 12 6M118 86l-8 12 6 8-10 10M60 120l8-6 10 6" fill="none" stroke="#ff7a1a" stroke-width="3.5" stroke-linecap="round" filter="url(#glow-${id})"/>
+         <path d="M40 62l8 6M112 58l-6 8M70 48l4 8" stroke="#ffb347" stroke-width="3" stroke-linecap="round" filter="url(#glow-${id})"/>
+         ${[0, 1, 2, 3, 4].map((i) => `<circle class="ember e${i}" cx="${30 + i * 25}" cy="${40 - (i % 2) * 10}" r="${2 + (i % 2)}" fill="#ffb347"/>`).join('')}`;
+    return `<svg class="chest-art ${frost ? 'frost' : 'molten'}" width="${size}" height="${size}" viewBox="0 0 160 160">
+      <defs>
+        <linearGradient id="cb-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${body[0]}"/><stop offset=".55" stop-color="${body[1]}"/><stop offset="1" stop-color="${body[2]}"/></linearGradient>
+        <linearGradient id="band-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe680"/><stop offset=".5" stop-color="#ffc21a"/><stop offset="1" stop-color="#d88a00"/></linearGradient>
+        <radialGradient id="aura-${id}" cx=".5" cy=".55" r=".5"><stop offset="0" stop-color="${frost ? '#bfefff' : '#ff8a2a'}" stop-opacity=".75"/><stop offset="1" stop-color="${frost ? '#bfefff' : '#ff3b1c'}" stop-opacity="0"/></radialGradient>
+        <filter id="glow-${id}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <ellipse cx="80" cy="84" rx="74" ry="62" fill="url(#aura-${id})"/>
+      <ellipse cx="80" cy="143" rx="56" ry="8" fill="rgba(0,0,0,.22)"/>
+      <g class="lid">
+        <path d="M22 72c0-30 22-46 58-46s58 16 58 46z" fill="url(#cb-${id})" stroke="${edge}" stroke-width="4.5" stroke-linejoin="round"/>
+        <path d="M30 60c4-16 18-26 50-26M34 70h92" stroke="${plank}" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <path d="M68 27h24v45H68z" fill="url(#band-${id})" stroke="#9a5a00" stroke-width="3"/>
+        <path d="M22 66h116v8H22z" fill="url(#band-${id})" stroke="#9a5a00" stroke-width="3"/>
+        <path d="M34 44c10-10 24-14 40-14" stroke="rgba(255,255,255,.55)" stroke-width="4" fill="none" stroke-linecap="round"/>
+      </g>
+      <rect x="22" y="72" width="116" height="64" rx="7" fill="url(#cb-${id})" stroke="${edge}" stroke-width="4.5"/>
+      <path d="M26 92h108M26 114h108" stroke="${plank}" stroke-width="3"/>
+      <path d="M22 128h116v8H22z" fill="url(#band-${id})" stroke="#9a5a00" stroke-width="3"/>
+      <path d="M68 72h24v64H68z" fill="url(#band-${id})" stroke="#9a5a00" stroke-width="3"/>
+      ${[[30, 80], [130, 80], [30, 120], [130, 120]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.2" fill="#ffd84a" stroke="#9a5a00" stroke-width="1.5"/>`).join('')}
+      <path d="M80 80l13 10-5 16H72l-5-16z" fill="${frost ? '#5fe3ff' : '#ff4f2e'}" stroke="#9a5a00" stroke-width="3" stroke-linejoin="round"/>
+      <path d="M80 84l8 6-3 9" stroke="rgba(255,255,255,.7)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      ${deco}
     </svg>`;
   }
   const rar = (id) => RARITY[SKIN_MAP[id].rarity] || RARITY.common;
@@ -820,7 +868,7 @@ export function createMenus(G) {
         const lb = G.arena && G.arena.lastLB;
         if (!lb) { b.appendChild(h('<div class="muted">No data yet.</div>')); return; }
         const rows = lb.list.map((r, i) => `<div class="row between box" style="padding:4px 10px;margin-bottom:4px;${r[5] ? 'border-color:#2fa8ff' : ''}">
-          <span>${i + 1}. ${esc(r[0])} ${r[2] ? '<span class="muted">[BOT]</span>' : ''}</span><span>${ic('sword', 20)} ${r[4]} · Lv <b>${r[1]}</b></span></div>`).join('');
+          <span>${i + 1}. ${esc(r[0])}</span><span>${ic('sword', 20)} ${r[4]} · Lv <b>${r[1]}</b></span></div>`).join('');
         b.appendChild(h(`<div>${rows}<div class="muted center">${G.netLabel()}</div></div>`));
       },
     });

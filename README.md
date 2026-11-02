@@ -19,7 +19,7 @@ If the page can't reach a server, it runs the same simulation in the browser wit
 | Area | Details |
 |---|---|
 | Lobby | A compact 3D hub with flat metal walls. Large pads spread around the room open **Skins Shop, Upgrades Shop, Chests, Tanks Shop, Wheel**. Drive into a portal to play. No leaderboards. |
-| Modes | **Spawn** (FFA), **Red VS Blue**, **4 Teams** |
+| Servers | **Battle** (FFA), **Red VS Blue**, **4 Teams**. Roblox-style live servers: up to 7 players each, empty slots filled by up to 6 bots. Servers keep running when players die or leave (one per mode is always on), and rejoining drops you back into the running server. |
 | Arena | Anchored shapes (they never move): yellow cubes, blue cubes, pink pentagons, purple hexagons and big cyan Alphas, richer toward the center. XP, gems, a 30s spawn shield, health regen, team bases. A **Lobby** button (bottom-left) returns you to the hub; if you were hit by a tank in the last 10 seconds it turns red, and leaving (or disconnecting) counts as a kill for your attacker. |
 | Tank tree | ~50 tanks over tiers Lv 15 / 30 / 42 / 110 (Double → Triway → Fiveway → Phoenix, Scout → Hitman → Ace/Shadow, Spammer, Side, Grinder/Spiker melee, Freezer, Flame, Railgun, Blast Lord, Orbitron…). Some cost gems, some come from quests, chests or the wheel. |
 | Keys | **Q** tank upgrades · **E** stats (**1-8**) · **F** auto fire · **R** auto spin · **C** turn 180° · **Shift** camera lock · **X** index · **G** gifts · **Enter** chat · WASD + mouse · right-drag rotates the camera · scroll zooms |
@@ -68,3 +68,13 @@ scripts/           build, sim test, multiplayer test
 ```
 
 The server is authoritative. It runs at 30 ticks/s and sends area-of-interest snapshots of about 2-3 KB each. Clients interpolate other entities and predict their own tank with reconciliation.
+
+## Combat notes
+
+- Bullets collide with each other and cancel out with a small white puff.
+- Railgun-class tanks fire a long neon beam that pierces shapes, tanks and bullets. Each target is hit once, and the beam loses 20% damage per target.
+- Health bars show a short "damage trail" that drains after each hit.
+
+## Originality
+
+Mechanics follow the genre, but names and art are this project's own. Tank display names, chest names, the prize wheel, chest artwork, icons and the lobby are original. Internal tank IDs are kept stable so saves stay compatible.

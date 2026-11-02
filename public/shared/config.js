@@ -14,9 +14,9 @@ export const TEAM_COLORS = {
 export const TEAM_NAMES = { 1: 'Blue', 2: 'Red', 3: 'Green', 4: 'Purple' };
 
 export const MODES = {
-  ffa: { id: 'ffa', name: 'Spawn', half: 130, shapes: 230, botTarget: 10, maxHumans: 14, teams: 0, desc: 'Free for all' },
-  teams: { id: 'teams', name: 'Red VS Blue', half: 140, shapes: 230, botTarget: 12, maxHumans: 16, teams: 2, desc: '2 teams' },
-  four: { id: 'four', name: '4 Teams', half: 150, shapes: 260, botTarget: 16, maxHumans: 20, teams: 4, desc: '4 teams' },
+  ffa: { id: 'ffa', name: 'Battle', half: 150, shapes: 280, maxHumans: 7, teams: 0, desc: 'Free for all' },
+  teams: { id: 'teams', name: 'Red VS Blue', half: 160, shapes: 290, maxHumans: 7, teams: 2, desc: '2 teams' },
+  four: { id: 'four', name: '4 Teams', half: 170, shapes: 320, maxHumans: 7, teams: 4, desc: '4 teams' },
 };
 
 // Shapes (the "farm" food). r = collision radius, dmg = contact damage per tick.
@@ -44,10 +44,14 @@ export const BASE_CAP = 8;
 export const MAX_CAP = 15;
 
 export const BULLET_KINDS = ['bullet', 'flame', 'freeze', 'rail', 'blast', 'split', 'orbit'];
-export const FX = { POP: 0, BLAST: 1, HIT: 2, DEATH: 3, LEVEL: 4 };
+export const FX = { POP: 0, BLAST: 1, HIT: 2, DEATH: 3, LEVEL: 4, RAIL: 5 };
 
 // Movement response (per second). High = Roblox-like: near-instant start and stop, no ice-skating.
 export const MOVE_ACCEL = 18;
+
+// Servers: up to 7 players each; bots fill empty slots (never more than 6).
+export const ROOM_SIZE = 7;
+export const MAX_BOTS = 6;
 
 export const SPAWN_SHIELD = 30; // seconds of spawn protection
 export const COMBAT_TIME = 10; // seconds after being hit by a tank that you count as 'in combat'

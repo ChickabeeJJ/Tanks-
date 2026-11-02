@@ -68,8 +68,8 @@ export const QUESTS = {
   ],
   unique: [
     { id: 'u_lv25', name: 'Rookie', reqs: [{ k: 'level', n: 25, label: 'Reach Level 25' }], reward: { gems: 2000 } },
-    { id: 'u_kill25', name: 'Blast Lord', reqs: [{ k: 'totalKills', n: 25, label: 'Kill 25 tanks' }], reward: { tank: 'blastlord' } },
-    { id: 'u_lv60', name: 'Hi-Opticon', reqs: [{ k: 'level', n: 60, label: 'Reach Level 60' }], reward: { tank: 'hiopticon' } },
+    { id: 'u_kill25', name: 'Bombardier', reqs: [{ k: 'totalKills', n: 25, label: 'Kill 25 tanks' }], reward: { tank: 'blastlord' } },
+    { id: 'u_lv60', name: 'Hyperfocus', reqs: [{ k: 'level', n: 60, label: 'Reach Level 60' }], reward: { tank: 'hiopticon' } },
     { id: 'u_alpha', name: 'Alpha Hunter', reqs: [{ k: 'alphas', n: 5, label: 'Destroy 5 Alpha shapes' }], reward: { gems: 10000 } },
     { id: 'u_lv150', name: 'Veteran', reqs: [{ k: 'level', n: 150, label: 'Reach Level 150' }], reward: { gems: 25000 } },
   ],
@@ -80,26 +80,26 @@ export const QUESTS = {
 
 // Playtime gifts (12, like the original). xpLv = fraction of the XP needed for your current level.
 export const GIFTS = [
-  { at: 60, r: { xpLv: 0.03 } }, { at: 150, r: { xpLv: 0.055 } }, { at: 240, r: { gems: 300 } }, { at: 360, r: { xpLv: 0.11 } },
-  { at: 600, r: { gems: 550 } }, { at: 900, r: { xpLv: 0.14 } }, { at: 1260, r: { xpLv: 0.27 } }, { at: 1680, r: { xpLv: 0.16 } },
-  { at: 2160, r: { gems: 900 } }, { at: 2640, r: { xpLv: 0.55 } }, { at: 3240, r: { gems: 1500 } }, { at: 3900, r: { xpLv: 2.7 }, mega: true },
+  { at: 60, r: { xpLv: 0.06 } }, { at: 150, r: { xpLv: 0.11 } }, { at: 240, r: { gems: 600 } }, { at: 360, r: { xpLv: 0.22 } },
+  { at: 600, r: { gems: 1100 } }, { at: 900, r: { xpLv: 0.28 } }, { at: 1260, r: { xpLv: 0.54 } }, { at: 1680, r: { xpLv: 0.32 } },
+  { at: 2160, r: { gems: 1800 } }, { at: 2640, r: { xpLv: 1.1 } }, { at: 3240, r: { gems: 3000 } }, { at: 3900, r: { xpLv: 5.4 }, mega: true },
 ];
 
 export const WHEEL = [
   { id: 'xp1', label: 'XP', xpLv: 0.15, odds: 24, color: '#ffb020' },
   { id: 'gem1', label: 'Gems', gems: 2500, odds: 18, color: '#25b8f0' },
   { id: 'xp2', label: 'XP', xpLv: 0.4, odds: 16, color: '#36c95f' },
-  { id: 'allspiker', label: 'Allspiker', tank: 'allspiker', odds: 4, color: '#ff4f7a' },
+  { id: 'allspiker', label: 'Thornball', tank: 'allspiker', odds: 4, color: '#ff4f7a' },
   { id: 'gem2', label: 'Gems', gems: 7500, odds: 12, color: '#9b5cff' },
   { id: 'xp3', label: 'XP', xpLv: 0.85, odds: 14, color: '#ff7a2a' },
-  { id: 'ultra', label: 'Ultra', tank: 'ultra', odds: 2, color: '#e8455c' },
+  { id: 'ultra', label: 'Colossus', tank: 'ultra', odds: 2, color: '#e8455c' },
   { id: 'gem3', label: 'Gems', gems: 15000, odds: 10, color: '#1fbfa6' },
 ];
 
 export const CHESTS = [
-  { id: 'frozen', name: 'Frozen Chest', price: 5000, color: '#9fe6ff', dark: '#2a7fb0',
+  { id: 'frozen', name: 'Frost Chest', price: 5000, color: '#9fe6ff', dark: '#2a7fb0',
     drops: [['glacier', 45], ['aurora', 30], ['blizzard', 18], ['diamond', 6], ['nebula', 1]] },
-  { id: 'lava', name: 'Lava Chest', price: 20000, color: '#ff8a2a', dark: '#a3360a',
+  { id: 'lava', name: 'Molten Chest', price: 20000, color: '#ff8a2a', dark: '#a3360a',
     drops: [['ember', 45], ['magma', 30], ['inferno', 18], ['sunforge', 6], ['eclipse', 1]] },
 ];
 

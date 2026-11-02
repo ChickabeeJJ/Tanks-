@@ -8,7 +8,7 @@ import { createHUD } from './ui/hud.js';
 import { createMenus } from './ui/menus.js';
 import { Arena } from './game.js';
 import { Lobby } from './lobby.js';
-import { resolveServer, apiBase } from './net.js';
+import { resolveServer, apiBase, localServer } from './net.js';
 import { MODES } from '../shared/config.js';
 import { cleanName, cleanChat } from '../shared/filter.js';
 
@@ -37,8 +37,8 @@ G.fetchRooms = async () => {
   try { return await (await fetch(new URL('api/rooms', base))).json(); } catch { return []; }
 };
 G.netLabel = () => {
-  if (G.arena && G.arena.conn) return G.arena.online ? `Online · server ${G.arena.roomId}` : 'Offline · playing with bots';
-  return G.api ? 'Online servers available' : 'Offline mode · bots fill every match';
+  if (G.arena && G.arena.conn) return `Server ${G.arena.roomId}`;
+  return 'Servers: Battle, Red VS Blue, 4 Teams';
 };
 
 // ------------------------------------------------------------------ state changes
@@ -172,6 +172,8 @@ async function boot() {
   G.hud.refresh();
   progress(80, 'Finding servers...');
   await api();
+  // no online server: boot the local servers now so they are already live (bots playing)
+  if (!G.api) for (const m of Object.keys(MODES)) localServer(m);
   progress(100, 'Ready!');
   SDK.loadingStop();
   window.addEventListener('pointerdown', () => Audio.unlock(), { once: true });

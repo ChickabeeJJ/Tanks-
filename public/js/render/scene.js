@@ -257,7 +257,7 @@ export const LOBBY = {
   ],
   portals: [
     { id: 'teams', label: 'Red VS Blue', sub: 'Teams', x: -15, z: 30, color: 0xff3048, color2: 0x2f9dff },
-    { id: 'ffa', label: 'Spawn', sub: 'Free for all', x: 0, z: 33, color: 0xff2d7a, color2: 0xff8fb8, big: true },
+    { id: 'ffa', label: 'Battle', sub: 'Free for all', x: 0, z: 33, color: 0xff2d7a, color2: 0xff8fb8, big: true },
     { id: 'four', label: '4 Teams', sub: 'New!', x: 15, z: 30, color: 0xffcc1a, color2: 0x3ee06a },
   ],
 };

@@ -1,6 +1,6 @@
 // Authoritative game simulation. Runs on the Node server (multiplayer) and in the
 // browser (offline fallback). Pure JS, no DOM / Node APIs.
-import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME, MOVE_ACCEL } from './config.js';
+import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME, MOVE_ACCEL, ROOM_SIZE, MAX_BOTS } from './config.js';
 import { TANKS, getTank, derived, canUse, upgradeOptions } from './tanks.js';
 import { addXp, statPointsForLevel, MAX_LEVEL } from './progression.js';
 import { botName, botLevel } from './names.js';
@@ -82,10 +82,10 @@ export class World {
     this.chatId = 0;
     this.grid = new Grid(12);
     this.tmp = [];
-    this.botTarget = opts.botTarget ?? this.mode.botTarget;
+    this.maxBots = opts.botTarget ?? MAX_BOTS;
     this.humans = 0;
     for (let i = 0; i < this.mode.shapes; i++) this.spawnShape(true);
-    for (let i = 0; i < this.botTarget - 1; i++) this.addBot();
+    for (let i = 0; i < this.maxBots; i++) this.addBot();
   }
 
   id() { return this.nid++; }
@@ -459,7 +459,11 @@ export class World {
       const a = base + (rand() - 0.5) * 2 * b.spread;
       let spd = 42 * b.spd * t.d.bspdMul;
       if (n > 1 && !b.burst) spd *= 0.85 + rand() * 0.3;
-      this.makeBullet(t, b, x, z, a, spd);
+      const bl = this.makeBullet(t, b, x, z, a, spd);
+      if (b.kind === 'rail') {
+        // full-length neon streak for clients: [type, x, z, angle, range, ownerId, team]
+        this.fx.push({ tick: this.tick, d: [FX.RAIL, r1(x), r1(z), r2(a), r1(spd * bl.life), t.id, t.team] });
+      }
     }
     const imp = 0.55 * b.recoil * b.w * (n > 1 ? 1.4 : 1);
     t.vx -= ca * imp;
@@ -614,6 +618,37 @@ export class World {
     }
   }
 
+  // Railgun beam: pierces shapes, tanks and bullets; each target is hit once and the beam
+  // loses 20% damage per target it passes through.
+  railHit(bl, e, now, teams) {
+    if (e === bl) return;
+    bl.hits = bl.hits || new Set();
+    if (bl.hits.has(e.id)) return;
+    const rr = e.r + bl.r;
+    if (segDist2(bl.px, bl.pz, bl.x, bl.z, e.x, e.z) > rr * rr) return;
+    if (e.kind === 'shape') {
+      if (e.hp <= 0) return;
+      bl.hits.add(e.id);
+      e.hp -= bl.dmg;
+      if (e.hp <= 0) this.killShape(e, bl.owner);
+    } else if (e.kind === 'tank') {
+      if (!e.alive || e.id === bl.owner || (teams && e.team === bl.team)) return;
+      bl.hits.add(e.id);
+      if (e.shieldUntil > now || bl.shielded) return;
+      this.damageTank(e, bl.dmg, bl.owner);
+      const sp = Math.hypot(bl.vx, bl.vz) || 1;
+      e.vx += (bl.vx / sp) * 2.5; e.vz += (bl.vz / sp) * 2.5;
+    } else if (e.kind === 'bullet') {
+      if (e.hp <= 0 || e.owner === bl.owner || (teams && e.team === bl.team) || e.k === 'rail') return;
+      bl.hits.add(e.id);
+      e.hp = 0;
+      this.fx.push({ tick: this.tick, d: [FX.HIT, r1(e.x), r1(e.z), r2(e.r)] });
+      return;
+    } else return;
+    bl.dmg *= 0.8;
+    this.fx.push({ tick: this.tick, d: [FX.HIT, r1(e.x), r1(e.z), r2(bl.r * 2)] });
+  }
+
   collide() {
     const g = this.grid;
     g.clear();
@@ -633,6 +668,7 @@ export class World {
       for (let i = 0; i < out.length && bl.hp > 0; i++) {
         const e = out[i];
         if (e === bl) continue;
+        if (bl.k === 'rail') { this.railHit(bl, e, now, teams); continue; }
         if (e.kind === 'shape') {
           if (e.hp <= 0) continue;
           const rr = e.r + bl.r;
@@ -658,9 +694,11 @@ export class World {
           const rr = e.r + bl.r;
           const dx = e.x - bl.x, dz = e.z - bl.z;
           if (dx * dx + dz * dz > rr * rr) continue;
+          if (e.k === 'rail') continue; // rails handle their own piercing
           const a = bl.dmg, b = e.dmg;
           bl.hp -= b;
           e.hp -= a;
+          this.fx.push({ tick: this.tick, d: [FX.HIT, r1((bl.x + e.x) / 2), r1((bl.z + e.z) / 2), r2(Math.max(bl.r, e.r))] });
         }
       }
     }
@@ -715,7 +753,8 @@ export class World {
   manageBots() {
     let bots = 0;
     for (const t of this.tanks.values()) if (t.isBot) bots++;
-    const want = Math.max(0, this.botTarget - this.humans);
+    // server population: 7 tanks total, bots fill empty slots (at most 6)
+    const want = Math.max(0, Math.min(this.maxBots, ROOM_SIZE - this.humans));
     if (bots < want) this.addBot();
     else if (bots > want) {
       let victim = null;

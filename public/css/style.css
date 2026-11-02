@@ -477,3 +477,11 @@ body.touch #bottomleft { bottom: auto; top: 10px; left: 110px; transform: scale(
 #topbar .qe { margin-top: -4px; }
 @media (max-width: 820px), (max-height: 560px) { #topbar { gap: 30px; } }
 .qe .ic { display: block; margin: auto; }
+.ix-tree { cursor: grab; touch-action: none; user-select: none; }
+.ix-tree.grabbing { cursor: grabbing; }
+.tnode img { pointer-events: none; -webkit-user-drag: none; }
+.chest-art .ember { animation: ember 1.8s ease-in infinite; }
+.chest-art .e1 { animation-delay: .35s; } .chest-art .e2 { animation-delay: .7s; } .chest-art .e3 { animation-delay: 1.05s; } .chest-art .e4 { animation-delay: 1.4s; }
+@keyframes ember { 0% { transform: translateY(20px); opacity: 0; } 30% { opacity: 1; } 100% { transform: translateY(-14px); opacity: 0; } }
+.chest-art.frost { filter: drop-shadow(0 0 8px rgba(191,239,255,.8)); }
+.chest-art.molten { filter: drop-shadow(0 0 10px rgba(255,120,40,.7)); }

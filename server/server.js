@@ -89,9 +89,13 @@ setInterval(() => {
     for (const r of rooms.values()) r.step();
   }
   if (acc > 1) acc = 0;
-  // close long-empty rooms
+  // Servers are live: the first server of each mode always runs (bots keep playing).
+  // Extra servers created when others filled up close after 2 empty minutes.
   for (const r of rooms.values()) {
-    if (!r.clients.size && Date.now() - r.emptySince > 60_000) rooms.delete(r.id);
+    if (r.clients.size || Date.now() - r.emptySince < 120_000) continue;
+    let others = 0;
+    for (const o of rooms.values()) if (o !== r && o.mode === r.mode) others++;
+    if (others > 0) rooms.delete(r.id);
   }
 }, 1000 / 60);
 
@@ -170,6 +174,9 @@ wss.on('connection', (ws) => {
   });
   ws.on('error', () => {});
 });
+
+// one always-on server per mode
+for (const mode of Object.keys(MODES)) new Room(mode);
 
 server.listen(PORT, () => {
   console.log(`Tanks server running on http://localhost:${PORT}  (ws path /ws)`);

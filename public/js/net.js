@@ -70,18 +70,50 @@ export class OnlineConn {
   close() { this.h.onClose = null; try { this.send({ t: 'leave' }); this.ws.close(); } catch { /* */ } }
 }
 
+// Local servers (used when no online server is reachable). Like real servers they are live:
+// created once per mode, they keep running (bots keep playing) while you are in the lobby or dead.
+const LOCAL = new Map();
+let ticker = null, last = 0, acc = 0;
+export function localServer(mode) {
+  if (!LOCAL.has(mode)) LOCAL.set(mode, { world: new World(mode), listeners: new Set() });
+  if (!ticker) {
+    last = performance.now();
+    ticker = setInterval(() => {
+      const now = performance.now();
+      acc += Math.min((now - last) / 1000, 0.5);
+      last = now;
+      let n = 0;
+      while (acc >= DT && n++ < 8) {
+        acc -= DT;
+        for (const s of LOCAL.values()) {
+          s.world.step();
+          for (const f of s.listeners) f();
+        }
+      }
+      if (acc > 1) acc = 0;
+    }, 1000 / 60);
+  }
+  return LOCAL.get(mode);
+}
+
 export class OfflineConn {
   constructor(h) {
     this.h = h;
     this.online = false;
-    this.acc = 0;
     this.rtt = 0;
   }
   join(msg) {
-    this.world = new World(msg.mode);
+    const srv = localServer(msg.mode);
+    this.srv = srv;
+    this.world = srv.world;
     this.me = this.world.addTank(msg);
     this.cs = {};
-    this.h.onWelcome({ t: 'welcome', id: this.me.id, room: 'offline', mode: msg.mode, half: this.world.half, teams: this.world.mode.teams });
+    this.listener = () => {
+      const s = this.world && this.world.snapshotFor(this.me.id, this.cs);
+      if (s) this.h.onSnapshot(s);
+    };
+    srv.listeners.add(this.listener);
+    this.h.onWelcome({ t: 'welcome', id: this.me.id, room: `${msg.mode}-1`, mode: msg.mode, half: this.world.half, teams: this.world.mode.teams });
   }
   send(o) {
     const w = this.world;
@@ -96,16 +128,10 @@ export class OfflineConn {
       case 'chat': { const m = cleanChat(o.m); if (m) w.addChat(id, m); break; }
     }
   }
-  update(dt) {
-    if (!this.world) return;
-    this.acc += Math.min(dt, 0.25);
-    let n = 0;
-    while (this.acc >= DT && n++ < 8) {
-      this.acc -= DT;
-      this.world.step();
-      const s = this.world.snapshotFor(this.me.id, this.cs);
-      if (s) this.h.onSnapshot(s);
-    }
+  update() { /* the shared local ticker drives the simulation */ }
+  close() {
+    if (this.srv) this.srv.listeners.delete(this.listener);
+    if (this.world && this.me) this.world.leaveTank(this.me.id); // the server itself keeps running
+    this.world = null;
   }
-  close() { if (this.world && this.me) this.world.leaveTank(this.me.id); this.world = null; }
 }
