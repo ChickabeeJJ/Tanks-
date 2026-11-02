@@ -51,10 +51,10 @@ void main(){
 }`;
 
 export class Post {
-  constructor(renderer) {
+  constructor(renderer, samples = 4) {
     this.r = renderer;
     const opts = { type: THREE.HalfFloatType, depthBuffer: false };
-    this.scene = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
+    this.scene = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples });
     this.a = new THREE.WebGLRenderTarget(4, 4, opts);
     this.b = new THREE.WebGLRenderTarget(4, 4, opts);
     this.cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);

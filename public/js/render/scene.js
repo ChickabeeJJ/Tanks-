@@ -9,7 +9,8 @@ export function createRenderer(canvas, quality = 'high') {
   const high = quality === 'high';
   // MSAA happens in the post-processing buffer, so the canvas itself needs no antialias when post is on.
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !high, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, high ? 1.75 : 1));
+  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, high ? (touch ? 1.25 : 1.75) : 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NoToneMapping; // grading happens in post (keeps colours vivid)
   renderer.shadowMap.enabled = high;
@@ -53,7 +54,7 @@ export function createRenderer(canvas, quality = 'high') {
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 700);
   const ambience = createAmbience(scene);
-  const post = high ? new Post(renderer) : null;
+  const post = high ? new Post(renderer, touch ? 0 : 4) : null;
 
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
