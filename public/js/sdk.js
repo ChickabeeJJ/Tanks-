@@ -107,17 +107,20 @@ export const SDK = {
     try { return await this.sdk.user.getUser(); } catch { return null; }
   },
 
-  // --- persistence (SDK data module syncs to the CrazyGames account; falls back to localStorage)
+  // --- persistence: CrazyGames data module (synced to the player's CrazyGames account)
+  // plus a localStorage mirror. Both are always written; reads return both copies.
+  getItems(k) {
+    let cg = null, ls = null;
+    try { if (this.sdk && this.sdk.data) cg = this.sdk.data.getItem(k); } catch { cg = null; }
+    try { ls = localStorage.getItem(k); } catch { ls = null; }
+    return { cg, ls };
+  },
   getItem(k) {
-    try {
-      if (this.sdk && this.sdk.data) return this.sdk.data.getItem(k);
-    } catch { /* fall through */ }
-    try { return localStorage.getItem(k); } catch { return null; }
+    const { cg, ls } = this.getItems(k);
+    return cg != null ? cg : ls;
   },
   setItem(k, v) {
-    try {
-      if (this.sdk && this.sdk.data) { this.sdk.data.setItem(k, v); return; }
-    } catch { /* fall through */ }
+    try { if (this.sdk && this.sdk.data) this.sdk.data.setItem(k, v); } catch (e) { console.warn('[sdk] data.setItem failed', e); }
     try { localStorage.setItem(k, v); } catch { /* private mode */ }
   },
 

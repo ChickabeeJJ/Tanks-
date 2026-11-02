@@ -80,6 +80,17 @@ G.toLobby = async (skipAd) => {
 };
 
 // ------------------------------------------------------------------ actions
+// In-match "Lobby" button. Leaving while in combat counts as a kill for whoever was fighting you.
+G.leaveMatch = () => {
+  const a = G.arena;
+  if (!a) return;
+  if (a.me && a.alive && a.me.cb > 0) {
+    G.menus.open('confirm', '<b>You are in combat!</b><br>If you leave now it counts as a kill for your enemy.<br>Leave anyway?', () => G.toLobby());
+    return;
+  }
+  G.toLobby();
+};
+
 G.rewarded = async () => {
   const ok = await SDK.ad('rewarded');
   if (ok) {

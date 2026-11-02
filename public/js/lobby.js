@@ -5,19 +5,13 @@ import { buildTank, disposeTank } from './render/models.js';
 import { Input } from './input.js';
 import { profile } from './profile.js';
 import { MODES } from '../shared/config.js';
-import { botName } from '../shared/names.js';
 import { Audio } from './audio.js';
-
-function seeded(seed) {
-  let s = seed >>> 0;
-  return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296);
-}
 
 export class Lobby {
   constructor(G) {
     this.G = G;
     this.inside = {};
-    this.pos = { x: 0, z: 6, vx: 0, vz: 0 };
+    this.pos = { x: 0, z: 2, vx: 0, vz: 0 };
     this.aim = -Math.PI / 2;
     this.ray = new THREE.Raycaster();
     this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.9);
@@ -47,13 +41,8 @@ export class Lobby {
     const data = await this.G.fetchBoards();
     const d = profile.d;
     const me = d.name || 'You';
-    let boards = data;
-    if (!boards) {
-      // offline: local leaderboard against the arena bots
-      const rnd = seeded(1234);
-      const mk = (scale) => Array.from({ length: 12 }, () => [botName(rnd), Math.floor((0.2 + rnd()) * scale)]);
-      boards = { kills: mk(400), level: mk(300), rank: mk(20) };
-    }
+    // Real data only: the server's global boards when online, otherwise just your own stats.
+    const boards = data || { kills: [], level: [], rank: [] };
     const put = (rows, v) => {
       rows = rows.filter((r) => r[0] !== me);
       rows.push([me, v]);
@@ -105,7 +94,7 @@ export class Lobby {
     p.z += p.vz * dt;
     const H = LOBBY.half - 2;
     p.x = Math.max(-H, Math.min(H, p.x));
-    p.z = Math.max(-H, Math.min(H + 4, p.z));
+    p.z = Math.max(-H, Math.min(H, p.z));
 
     // aim at mouse (or movement direction)
     if (G.toggles.lock) this.aim = Math.atan2(fw.z, fw.x);
@@ -120,7 +109,7 @@ export class Lobby {
 
     // pads
     for (const pad of LOBBY.pads) {
-      const inside = Math.hypot(pad.x - p.x, pad.z - p.z) < 4.4;
+      const inside = Math.hypot(pad.x - p.x, pad.z - p.z) < LOBBY.padR;
       if (inside && !this.inside[pad.id] && !G.menus.isOpen) { Audio.click(); G.menus.open(pad.id); }
       this.inside[pad.id] = inside;
     }

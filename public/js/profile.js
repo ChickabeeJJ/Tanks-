@@ -116,8 +116,12 @@ export const profile = {
   session: { start: performance.now(), claimedGifts: new Set(), playSec: 0 },
 
   load() {
-    let saved = null;
-    try { saved = JSON.parse(SDK.getItem(KEY) || 'null'); } catch { saved = null; }
+    // Read both the CrazyGames cloud save and the local mirror; keep whichever has more progress.
+    const { cg, ls } = SDK.getItems(KEY);
+    const parse = (t) => { try { return JSON.parse(t || 'null'); } catch { return null; } };
+    const a = parse(cg), b = parse(ls);
+    const score = (x) => (x ? (x.level || 1) * 1e9 + (x.xp || 0) + (x.savedAt || 0) / 1e13 : -1);
+    const saved = score(a) >= score(b) ? a : b;
     this.d = merge(defaults(), saved || {});
     this.rollPeriods();
     // daily login: "Join Tomorrow" task becomes claimable on a new day
@@ -134,6 +138,7 @@ export const profile = {
   },
   saveNow() {
     clearTimeout(saveTimer);
+    this.d.savedAt = Date.now();
     SDK.setItem(KEY, JSON.stringify(this.d));
   },
 
@@ -156,14 +161,17 @@ export const profile = {
     this.d.level = r.level;
     this.d.xp = r.xp;
     this.emit('xp');
+    if (r.gained) this.saveNow();
     return r.gained;
   },
   xpLv(k) { return Math.round(xpForLevel(this.d.level) * k); },
   setLevelXp(lv, xp) {
     if (lv !== this.d.level || xp !== this.d.xp) {
+      const up = lv !== this.d.level;
       this.d.level = lv;
       this.d.xp = xp;
       this.emit('xp');
+      if (up) this.saveNow();
     }
   },
   addGems(n) { this.d.gems += Math.round(n); this.emit('gems'); },

@@ -8,21 +8,24 @@ export function createRenderer(canvas, quality = 'high') {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: quality === 'high', powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, quality === 'high' ? 2 : 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  // Roblox-style look: no filmic tone mapping (it washes out colour), bright sun + sky fill.
+  renderer.toneMapping = THREE.NoToneMapping;
   renderer.shadowMap.enabled = quality === 'high';
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
   const scene = new THREE.Scene();
   scene.background = skyTexture();
-  scene.fog = new THREE.Fog(0xeef6ff, 110, 300);
+  scene.fog = new THREE.Fog(0xe4f3ff, 150, 380);
 
-  const hemi = new THREE.HemisphereLight(0xeaf6ff, 0xc9d3e2, 1.25);
+  const hemi = new THREE.HemisphereLight(0xffffff, 0xbfd4ee, 1.05);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffffff, 1.6);
+  const amb = new THREE.AmbientLight(0xffffff, 0.35);
+  scene.add(amb);
+  const sun = new THREE.DirectionalLight(0xfff6e8, 1.75);
   sun.position.set(30, 70, 25);
   sun.castShadow = quality === 'high';
   sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.radius = 4;
   const sc = sun.shadow.camera;
   sc.left = -70; sc.right = 70; sc.top = 70; sc.bottom = -70; sc.near = 1; sc.far = 220;
   sun.shadow.bias = -0.0008;
@@ -148,26 +151,24 @@ export function buildArena(half, mode) {
 
 // ------------------------------------------------------------------ lobby
 export const LOBBY = {
-  half: 60,
+  half: 40,
+  padR: 6.4,
   pads: [
-    { id: 'serverhop', label: 'Server Hop', x: -24, z: -30, color: 0x3fd0ff },
-    { id: 'chests', label: 'Chests', x: -8, z: -33, color: 0x8fe6ff, badge: 'New' },
-    { id: 'wheel', label: 'Wheel', x: 8, z: -33, color: 0xffd23f },
-    { id: 'skins', label: 'Skins Shop', x: -36, z: -12, color: 0x3fd0ff },
-    { id: 'upgrades', label: 'Upgrades Shop', x: -38, z: 2, color: 0x3fd0ff },
-    { id: 'tanks', label: 'Tanks Shop', x: -36, z: 16, color: 0x3fd0ff },
+    { id: 'chests', label: 'Chests', x: -11, z: -24, color: 0x6fe3ff, badge: 'New' },
+    { id: 'wheel', label: 'Wheel', x: 11, z: -24, color: 0xffd21f },
+    { id: 'skins', label: 'Skins Shop', x: -26, z: -9, color: 0x2ec8ff },
+    { id: 'upgrades', label: 'Upgrades Shop', x: -26, z: 7, color: 0x2ec8ff },
+    { id: 'tanks', label: 'Tanks Shop', x: -26, z: 23, color: 0x2ec8ff },
   ],
   portals: [
-    { id: 'mega', label: 'Mega', sub: 'Bigger map', x: -28, z: 34, color: 0xfff1a8, color2: 0xffffff },
-    { id: 'teams', label: 'Red VS Blue', sub: 'Teams', x: -14, z: 38, color: 0xff4b5c, color2: 0x4aa8ff },
-    { id: 'ffa', label: 'Spawn', sub: 'Free for all', x: 0, z: 40, color: 0xff3f7a, color2: 0xff8fb0, big: true },
-    { id: 'four', label: '4 Teams', sub: 'New!', x: 14, z: 38, color: 0xffd23f, color2: 0x5be37a },
-    { id: 'pro', label: 'Pro', sub: '+25% Gems', x: 28, z: 34, color: 0xc78bff, color2: 0xffffff },
+    { id: 'teams', label: 'Red VS Blue', sub: 'Teams', x: -15, z: 30, color: 0xff3048, color2: 0x2f9dff },
+    { id: 'ffa', label: 'Spawn', sub: 'Free for all', x: 0, z: 33, color: 0xff2d7a, color2: 0xff8fb8, big: true },
+    { id: 'four', label: '4 Teams', sub: 'New!', x: 15, z: 30, color: 0xffcc1a, color2: 0x3ee06a },
   ],
   boards: [
-    { id: 'kills', label: 'Kills', x: -52, z: -14, ry: Math.PI / 2 },
-    { id: 'rank', label: 'Rank', x: 50, z: -16, ry: -Math.PI / 2 },
-    { id: 'level', label: 'Level', x: 50, z: 10, ry: -Math.PI / 2 },
+    { id: 'kills', label: 'Kills', x: 35, z: -18, ry: -Math.PI / 2 },
+    { id: 'rank', label: 'Rank', x: 35, z: 0, ry: -Math.PI / 2 },
+    { id: 'level', label: 'Level', x: 35, z: 18, ry: -Math.PI / 2 },
   ],
 };
 
@@ -221,7 +222,7 @@ export function buildLobby(skinId) {
   root.add(floor);
 
   // striped back walls
-  const st = stripeTexture('#bfe3ff', '#ffffff').clone();
+  const st = stripeTexture('#8fd0ff', '#ffffff').clone();
   st.needsUpdate = true;
   st.repeat.set(10, 1);
   const wallMat = new THREE.MeshStandardMaterial({ map: st, roughness: 0.9 });
@@ -232,23 +233,11 @@ export function buildLobby(skinId) {
     root.add(w);
   }
 
-  // low white curbs (paths)
-  const curbMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 });
-  const curbs = [[-20, 10, 18, 0.6], [20, 10, 18, -0.6], [-22, -16, 14, -0.5], [22, -16, 14, 0.5]];
-  for (const [x, z, len, ry] of curbs) {
-    const c = new THREE.Mesh(new THREE.BoxGeometry(len, 1, 1.4), curbMat);
-    c.position.set(x, 0.5, z);
-    c.rotation.y = ry;
-    c.castShadow = true;
-    c.receiveShadow = true;
-    root.add(c);
-  }
-
   // confetti on the floor
-  const N = 420;
+  const N = 240;
   const conf = new THREE.InstancedMesh(new THREE.CircleGeometry(0.45, 5), new THREE.MeshBasicMaterial({ side: THREE.DoubleSide }), N);
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), col = new THREE.Color();
-  const pal = [0xff8fb0, 0x8fd3ff, 0xc6a2ff, 0xffc4d6, 0xa8e6ff];
+  const pal = [0xff6fa0, 0x5cc4ff, 0xb37bff, 0xff9fc4, 0x7fdcff];
   for (let i = 0; i < N; i++) {
     e.set(-Math.PI / 2, 0, Math.random() * 6);
     q.setFromEuler(e);
@@ -259,7 +248,8 @@ export function buildLobby(skinId) {
   root.add(conf);
 
   const anim = [];
-  const ringGeo = new THREE.TorusGeometry(4.2, 0.35, 10, 48);
+  const PR = LOBBY.padR;
+  const ringGeo = new THREE.TorusGeometry(PR, 0.5, 12, 64);
   ringGeo.rotateX(Math.PI / 2);
 
   for (const p of LOBBY.pads) {
@@ -268,21 +258,12 @@ export function buildLobby(skinId) {
     const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: p.color }));
     ring.position.y = 0.2;
     g.add(ring);
-    const glow = new THREE.Mesh(new THREE.CircleGeometry(4.2, 40), new THREE.MeshBasicMaterial({ color: p.color, transparent: true, opacity: 0.18, depthWrite: false }));
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(PR, 48), new THREE.MeshBasicMaterial({ color: p.color, transparent: true, opacity: 0.18, depthWrite: false }));
     glow.rotation.x = -Math.PI / 2;
     glow.position.y = 0.05;
     g.add(glow);
     let model;
-    if (p.id === 'serverhop') {
-      model = new THREE.Group();
-      for (let i = 0; i < 3; i++) {
-        const b = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.1, 2.4), new THREE.MeshStandardMaterial({ color: 0x5a6b80, roughness: 0.5 }));
-        b.position.y = 0.8 + i * 1.25;
-        const led = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.2, 0.05), new THREE.MeshBasicMaterial({ color: 0x3fd0ff }));
-        led.position.set(0, b.position.y, 1.23);
-        model.add(b, led);
-      }
-    } else if (p.id === 'chests') {
+    if (p.id === 'chests') {
       model = new THREE.Group();
       const base = new THREE.Mesh(new THREE.BoxGeometry(3.6, 2, 2.6), new THREE.MeshStandardMaterial({ color: 0xbfeeff, roughness: 0.3 }));
       base.position.y = 1.2;
@@ -320,9 +301,9 @@ export function buildLobby(skinId) {
       model = tk.group;
       anim.push((t) => { tk.rot.rotation.y = -t * 0.6; });
     }
-    if (model) g.add(model);
-    const label = textSprite(p.label, { size: 56, bg: 'rgba(120,130,145,0.85)', height: 2.2 });
-    label.position.set(0, 7.2, 0);
+    if (model) { model.scale.multiplyScalar(1.45); g.add(model); }
+    const label = textSprite(p.label, { size: 56, bg: 'rgba(110,122,140,0.85)', height: 2.8 });
+    label.position.set(0, 9.5, 0);
     g.add(label);
     root.add(g);
   }
@@ -375,7 +356,7 @@ export function buildLobby(skinId) {
 
   // the "4 Teams" update board (like the in-game event card)
   const upd = textSprite('4 Teams mode is here!', { size: 44, bg: 'rgba(40,46,60,0.88)', height: 2 });
-  upd.position.set(26, 6, -30);
+  upd.position.set(24, 6, -28);
   root.add(upd);
 
   return { root, anim, boards };

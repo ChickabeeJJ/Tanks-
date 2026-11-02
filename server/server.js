@@ -81,7 +81,7 @@ class Room {
     if (!this.clients.delete(client)) return;
     const t = this.world.tanks.get(client.tankId);
     if (t) submitBoard('level', t.uid, t.name, t.level);
-    this.world.removeTank(client.tankId);
+    this.world.leaveTank(client.tankId); // leaving mid-fight gives the attacker the kill
     if (!this.clients.size) this.emptySince = Date.now();
   }
   step() {

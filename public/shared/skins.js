@@ -1,7 +1,7 @@
 // Cosmetic skins. Tanks are BLUE by default; skins are bought with gems.
 // The client draws each pattern procedurally onto a canvas texture.
 export const SKINS = [
-  { id: 'default', name: 'Default', price: 0, base: '#3d9df2', pattern: 'plain' },
+  { id: 'default', name: 'Default', price: 0, base: '#2a9dff', pattern: 'plain' },
   { id: 'crimson', name: 'Crimson', price: 1500, base: '#e8384a', pattern: 'plain' },
   { id: 'lime', name: 'Lime', price: 1500, base: '#59d14a', pattern: 'plain' },
   { id: 'grape', name: 'Grape', price: 1500, base: '#9d4ef0', pattern: 'plain' },

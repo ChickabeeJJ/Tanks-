@@ -107,5 +107,5 @@ export class OfflineConn {
       if (s) this.h.onSnapshot(s);
     }
   }
-  close() { this.world = null; }
+  close() { if (this.world && this.me) this.world.leaveTank(this.me.id); this.world = null; }
 }

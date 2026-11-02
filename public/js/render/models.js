@@ -20,7 +20,7 @@ geo.ring.rotateX(-Math.PI / 2);
 geo.disc.rotateX(-Math.PI / 2);
 
 const mats = {
-  barrel: new THREE.MeshStandardMaterial({ color: 0x8fd3f7, roughness: 0.55, metalness: 0.05 }),
+  barrel: new THREE.MeshStandardMaterial({ color: 0x7fd0ff, roughness: 0.45, emissive: 0x2a6f99, emissiveIntensity: 0.25 }),
   barrelRed: new THREE.MeshStandardMaterial({ color: 0xff9aa2, roughness: 0.55 }),
   barrelGreen: new THREE.MeshStandardMaterial({ color: 0x9ff0a8, roughness: 0.55 }),
   barrelPurple: new THREE.MeshStandardMaterial({ color: 0xd2a8ff, roughness: 0.55 }),
@@ -37,21 +37,24 @@ const skinMats = new Map();
 function bodyMaterial(skinId) {
   if (skinMats.has(skinId)) return skinMats.get(skinId);
   const m = new THREE.MeshStandardMaterial({
-    map: skinTexture(skinId), roughness: skinId === 'gold' ? 0.25 : 0.6, metalness: skinId === 'gold' ? 0.5 : 0.02,
+    map: skinTexture(skinId), roughness: skinId === 'gold' ? 0.25 : 0.42, metalness: skinId === 'gold' ? 0.5 : 0.0,
+    emissive: 0xffffff, emissiveMap: skinTexture(skinId), emissiveIntensity: 0.12,
   });
   skinMats.set(skinId, m);
   return m;
 }
 
 // Build a tank. Group origin is on the ground; +x is "forward".
-export function buildTank(tankId, skinId = 'default', team = 0) {
+export function buildTank(tankId, skinId = 'default', team = 0, opts = {}) {
   const def = getTank(tankId);
   const R = 2 * def.body.size;
   const g = new THREE.Group();
   const rot = new THREE.Group(); // rotates with aim
   g.add(rot);
 
-  const body = new THREE.Mesh(geo.dome, bodyMaterial(skinId));
+  const body = new THREE.Mesh(geo.dome, opts.bodyColor != null
+    ? new THREE.MeshStandardMaterial({ color: opts.bodyColor, roughness: 0.4, emissive: opts.bodyColor, emissiveIntensity: 0.12 })
+    : bodyMaterial(skinId));
   body.scale.set(R, R * 0.82, R);
   body.position.y = R * 0.12;
   body.castShadow = true;
@@ -100,10 +103,12 @@ export function buildTank(tankId, skinId = 'default', team = 0) {
     g.add(spikes);
   }
 
-  const shadow = new THREE.Mesh(geo.disc, mats.shadow);
-  shadow.scale.setScalar(R * 1.05);
-  shadow.position.y = 0.03;
-  g.add(shadow);
+  if (!opts.noShadow) {
+    const shadow = new THREE.Mesh(geo.disc, mats.shadow);
+    shadow.scale.setScalar(R * 1.05);
+    shadow.position.y = 0.03;
+    g.add(shadow);
+  }
 
   let ring = null;
   if (team) {
@@ -148,7 +153,8 @@ export function shapeGeometry(type) {
 }
 
 export function shapeMaterial(type) {
-  return new THREE.MeshStandardMaterial({ color: SHAPES[type].color, roughness: 0.45, metalness: 0.0, flatShading: true });
+  const c = new THREE.Color(SHAPES[type].color);
+  return new THREE.MeshStandardMaterial({ color: c, emissive: c.clone().multiplyScalar(0.22), roughness: 0.38, metalness: 0.0, flatShading: true });
 }
 
 export const SHAPE_TYPES = SHAPE_LIST;

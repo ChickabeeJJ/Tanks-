@@ -509,6 +509,7 @@ export class Arena {
       const opts = this.upgradeList();
       G.hud.renderQ(opts);
       G.hud.renderE(me);
+      G.hud.setCombat(this.alive ? me.cb || 0 : 0);
     }
   }
 

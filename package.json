@@ -6,7 +6,7 @@
   "description": "3D multiplayer tank arena (HTML5 / CrazyGames) with bots.",
   "scripts": {
     "start": "node server/server.js",
-    "test": "node scripts/sim-test.mjs",
+    "test": "node scripts/sim-test.mjs && node scripts/combat-test.mjs",
     "build": "node scripts/build.mjs"
   },
   "dependencies": {

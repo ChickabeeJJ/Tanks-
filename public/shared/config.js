@@ -17,17 +17,15 @@ export const MODES = {
   ffa: { id: 'ffa', name: 'Spawn', half: 130, shapes: 230, botTarget: 10, maxHumans: 14, teams: 0, desc: 'Free for all' },
   teams: { id: 'teams', name: 'Red VS Blue', half: 140, shapes: 230, botTarget: 12, maxHumans: 16, teams: 2, desc: '2 teams' },
   four: { id: 'four', name: '4 Teams', half: 150, shapes: 260, botTarget: 16, maxHumans: 20, teams: 4, desc: '4 teams' },
-  mega: { id: 'mega', name: 'Mega', half: 220, shapes: 560, botTarget: 18, maxHumans: 24, teams: 0, alphaBoost: 2.5, desc: 'Bigger map' },
-  pro: { id: 'pro', name: 'Pro', half: 130, shapes: 230, botTarget: 10, maxHumans: 14, teams: 0, gemMul: 1.25, minLevel: 100, desc: '+25% Gems, Lv 100+' },
 };
 
 // Shapes (the "farm" food). r = collision radius, dmg = contact damage per tick.
 export const SHAPES = {
-  cube: { idx: 0, r: 1.1, hp: 30, dmg: 6, xp: 60, gems: 0, color: 0xffd23f, sides: 4, h: 1.5, w: 60 },
-  bcube: { idx: 1, r: 1.5, hp: 60, dmg: 7, xp: 150, gems: 0, color: 0x3fb2f5, sides: 4, h: 2.0, w: 22 },
-  pent: { idx: 2, r: 2.2, hp: 150, dmg: 8, xp: 500, gems: 1, color: 0xf7426f, sides: 5, h: 1.7, w: 12 },
-  hex: { idx: 3, r: 3.0, hp: 500, dmg: 10, xp: 1500, gems: 4, color: 0xa64ef0, sides: 6, h: 1.9, w: 5 },
-  alpha: { idx: 4, r: 6.0, hp: 4000, dmg: 12, xp: 7000, gems: 40, color: 0x3fe3f2, sides: 6, h: 2.3, w: 0.35 },
+  cube: { idx: 0, r: 1.1, hp: 30, dmg: 6, xp: 60, gems: 0, color: 0xffd21f, sides: 4, h: 1.5, w: 60 },
+  bcube: { idx: 1, r: 1.5, hp: 60, dmg: 7, xp: 150, gems: 0, color: 0x1fb0ff, sides: 4, h: 2.0, w: 22 },
+  pent: { idx: 2, r: 2.2, hp: 150, dmg: 8, xp: 500, gems: 1, color: 0xff2d6b, sides: 5, h: 1.7, w: 12 },
+  hex: { idx: 3, r: 3.0, hp: 500, dmg: 10, xp: 1500, gems: 4, color: 0x9b45ff, sides: 6, h: 1.9, w: 5 },
+  alpha: { idx: 4, r: 6.0, hp: 4000, dmg: 12, xp: 7000, gems: 40, color: 0x24e6ff, sides: 6, h: 2.3, w: 0.35 },
 };
 export const SHAPE_LIST = ['cube', 'bcube', 'pent', 'hex', 'alpha'];
 
@@ -49,3 +47,4 @@ export const BULLET_KINDS = ['bullet', 'flame', 'freeze', 'rail', 'blast', 'spli
 export const FX = { POP: 0, BLAST: 1, HIT: 2, DEATH: 3, LEVEL: 4 };
 
 export const SPAWN_SHIELD = 30; // seconds of spawn protection
+export const COMBAT_TIME = 10; // seconds after being hit by a tank that you count as 'in combat'

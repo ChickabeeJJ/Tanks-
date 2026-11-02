@@ -18,9 +18,9 @@ If the page can't reach a server, it runs the same simulation in the browser wit
 
 | Area | Details |
 |---|---|
-| Lobby | Drive around a 3D hub. Pads open **Server Hop, Chests, Wheel, Skins Shop, Upgrades Shop, Tanks Shop**. Leaderboard boards show **Kills, Rank and Level**. Drive into a portal to play. |
-| Modes | **Spawn** (FFA), **Red VS Blue**, **4 Teams**, **Mega** (bigger map), **Pro** (Lv 100+, +25% gems) |
-| Arena | Shapes: yellow cubes, blue cubes, pink pentagons, purple hexagons and big cyan Alphas, with richer shapes toward the center. XP, gems, a 30s spawn shield, health regen, team bases. |
+| Lobby | A compact 3D hub. Large pads open **Chests, Wheel, Skins Shop, Upgrades Shop, Tanks Shop**. Leaderboard boards show real players only (server data; offline they show just you). Drive into a portal to play. |
+| Modes | **Spawn** (FFA), **Red VS Blue**, **4 Teams** |
+| Arena | Anchored shapes (they never move): yellow cubes, blue cubes, pink pentagons, purple hexagons and big cyan Alphas, richer toward the center. XP, gems, a 30s spawn shield, health regen, team bases. A **Lobby** button returns you to the hub; if you were hit by a tank in the last 10 seconds it turns red, and leaving (or disconnecting) counts as a kill for your attacker. |
 | Tank tree | ~50 tanks over tiers Lv 15 / 30 / 42 / 110 (Double → Triway → Fiveway → Phoenix, Scout → Hitman → Ace/Shadow, Spammer, Side, Grinder/Spiker melee, Freezer, Flame, Railgun, Blast Lord, Orbitron…). Some cost gems, some come from quests, chests or the wheel. |
 | Keys | **Q** tank upgrades · **E** stats (**1-8**) · **F** auto fire · **R** auto spin · **C** turn 180° · **Shift** camera lock · **X** index · **G** gifts · **Enter** chat · WASD + mouse · right-drag rotates the camera · scroll zooms |
 | Progress | Persistent level (Lv 400 needs ~90K XP, like the original). Stat points scale with level, and stat caps can be raised in the Upgrades Shop. |
@@ -39,7 +39,7 @@ Things the Roblox game sells for Robux are rewarded ads here, or free:
 
 - `loadingStart/Stop`, `gameplayStart/Stop` (on spawn, death and lobby), and `happytime` on kills, rank-ups and chests.
 - `ad.requestAd('midgame' | 'rewarded')`, with audio muted and gameplay paused during ads.
-- `data.getItem/setItem` for cloud saves (falls back to localStorage).
+- `data.getItem/setItem` for saves (level, XP, gems, unlocks, quests). Every save is written to the CrazyGames data module **and** a localStorage mirror; on load the copy with the most progress wins. Level-ups save immediately.
 - `user.getUser` for the default name.
 - `game.inviteLink`, `showInviteButton`, `getInviteParam('room')` and `isInstantMultiplayer`, so invites land in the same server.
 - Respects `settings.muteAudio` and `settings.disableChat`. Chat is filtered and rate-limited.

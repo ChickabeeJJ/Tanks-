@@ -1,6 +1,6 @@
 // Authoritative game simulation. Runs on the Node server (multiplayer) and in the
 // browser (offline fallback). Pure JS, no DOM / Node APIs.
-import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD } from './config.js';
+import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME } from './config.js';
 import { TANKS, getTank, derived, canUse, upgradeOptions } from './tanks.js';
 import { addXp, statPointsForLevel, MAX_LEVEL } from './progression.js';
 import { botName, botLevel } from './names.js';
@@ -174,7 +174,7 @@ export class World {
     const id = this.id();
     this.shapes.set(id, {
       id, kind: 'shape', type, ti: s.idx, x, z, vx: 0, vz: 0, r: s.r, hp: s.hp, maxHp: s.hp,
-      rot: rand() * TAU, rs: (rand() - 0.5) * 0.8, dmg: s.dmg, mass: s.r * s.r, dir: rand() * TAU,
+      rot: rand() * TAU, rs: 0, dmg: s.dmg, mass: s.r * s.r, dir: rand() * TAU,
     });
   }
 
@@ -191,7 +191,7 @@ export class World {
       team: this.assignTeam(), tankId: 'default', stats: [0, 0, 0, 0, 0, 0, 0, 0], spent: 0,
       x: 0, z: 0, vx: 0, vz: 0, aim: 0, r: 2, hp: 100, d: null, alive: false,
       input: { mx: 0, mz: 0, aim: 0, fire: false }, seq: 0, cd: [], orbs: 0, orbSeq: 0,
-      shieldUntil: 0, lastDmg: 0, slowUntil: 0, kills: 0, score: 0, sessionXp: 0,
+      shieldUntil: 0, lastDmg: 0, slowUntil: 0, combatUntil: 0, kills: 0, score: 0, sessionXp: 0,
       ev: [], infoVer: 1, deathTime: 0, stillT: 0, stealth: false,
       gemPend: 0, xpPend: 0, shapePend: 0, killPend: 0, lastHitBy: null,
     };
@@ -200,6 +200,23 @@ export class World {
     this.recalc(t);
     this.spawn(t);
     return t;
+  }
+
+  inCombat(t) {
+    return t.alive && t.combatUntil > this.time && this.tanks.has(t.lastHitBy);
+  }
+
+  // A player leaves the match. Leaving while in combat counts as a kill for the attacker.
+  leaveTank(id) {
+    const t = this.tanks.get(id);
+    if (!t) return false;
+    let counted = false;
+    if (this.inCombat(t)) {
+      this.killTank(t, t.lastHitBy, 'Left while in combat');
+      counted = true;
+    }
+    this.removeTank(id);
+    return counted;
   }
 
   removeTank(id) {
@@ -252,6 +269,8 @@ export class World {
     t.stealth = false;
     t.slowUntil = 0;
     t.lastDmg = this.time;
+    t.combatUntil = 0;
+    t.lastHitBy = null;
     t.spawnTime = this.time;
     t.infoVer++;
     t.ev.push(['spawn']);
@@ -373,7 +392,10 @@ export class World {
     if (!t.alive || amount <= 0) return;
     t.hp -= amount;
     t.lastDmg = this.time;
-    if (byId != null) t.lastHitBy = byId;
+    if (byId != null && byId !== t.id && this.tanks.has(byId)) {
+      t.lastHitBy = byId;
+      t.combatUntil = this.time + COMBAT_TIME;
+    }
     if (t.hp <= 0) this.killTank(t, byId);
   }
 
@@ -562,19 +584,7 @@ export class World {
       if (this.mode.teams && bl.k !== 'orbit' && this.enemyBaseAt(bl.x, bl.z, bl.team)) bl.hp = 0;
     }
 
-    // --- shapes drift
-    const h = this.half;
-    for (const s of this.shapes.values()) {
-      s.rot += s.rs * DT;
-      s.dir += (rand() - 0.5) * 0.05;
-      s.vx *= 0.92;
-      s.vz *= 0.92;
-      s.x += (s.vx + Math.cos(s.dir) * 0.35) * DT;
-      s.z += (s.vz + Math.sin(s.dir) * 0.35) * DT;
-      const lim = h - s.r;
-      if (s.x < -lim || s.x > lim) { s.x = clamp(s.x, -lim, lim); s.dir = Math.PI - s.dir; }
-      if (s.z < -lim || s.z > lim) { s.z = clamp(s.z, -lim, lim); s.dir = -s.dir; }
-    }
+    // shapes are anchored: they never move or spin
 
     this.collide();
 
@@ -624,10 +634,6 @@ export class World {
           if (segDist2(bl.px, bl.pz, bl.x, bl.z, e.x, e.z) > rr * rr) continue;
           e.hp -= bl.dmg;
           bl.hp -= e.dmg;
-          const sp = Math.hypot(bl.vx, bl.vz) || 1;
-          const kb = (bl.k === 'flame' ? 0.3 : 2.2) * bl.r / e.mass;
-          e.vx += (bl.vx / sp) * kb * 6;
-          e.vz += (bl.vz / sp) * kb * 6;
           if (e.hp <= 0) this.killShape(e, bl.owner);
         } else if (e.kind === 'tank') {
           if (!e.alive || e.id === bl.owner) continue;
@@ -671,11 +677,10 @@ export class World {
         const nx = dx / d, nz = dz / d, pen = rr - d;
         if (e.kind === 'shape') {
           if (e.hp <= 0) continue;
-          const tm = t.r * t.r * 2, sm = e.mass;
-          t.x -= nx * pen * (sm / (tm + sm));
-          t.z -= nz * pen * (sm / (tm + sm));
-          e.x += nx * pen * (tm / (tm + sm));
-          e.z += nz * pen * (tm / (tm + sm));
+          t.x -= nx * pen;
+          t.z -= nz * pen;
+          const vn = t.vx * nx + t.vz * nz;
+          if (vn > 0) { t.vx -= nx * vn; t.vz -= nz * vn; }
           const dealt = t.d.bodyDps * DT;
           e.hp -= dealt;
           if (lifesteal) t.hp = Math.min(t.d.maxHp, t.hp + dealt * 0.25);
@@ -699,20 +704,6 @@ export class World {
       }
     }
 
-    // shape vs shape (soft separation, every other tick)
-    if (this.tick % 2 === 0) {
-      for (const s of this.shapes.values()) {
-        g.query(s.x, s.z, s.r + 6, out);
-        for (const e of out) {
-          if (e.kind !== 'shape' || e.id <= s.id) continue;
-          const dx = e.x - s.x, dz = e.z - s.z, rr = e.r + s.r, d2 = dx * dx + dz * dz;
-          if (d2 >= rr * rr || d2 === 0) continue;
-          const d = Math.sqrt(d2), p = (rr - d) * 0.25;
-          s.x -= (dx / d) * p; s.z -= (dz / d) * p;
-          e.x += (dx / d) * p; e.z += (dz / d) * p;
-        }
-      }
-    }
   }
 
   // ------------------------------------------------------------------ bots
@@ -909,7 +900,7 @@ export class World {
       a: v.alive ? 1 : 0, hp: Math.ceil(v.hp), mhp: v.d.maxHp, lv: v.level, xp: Math.floor(v.xp),
       sp: statPointsForLevel(v.level) - v.spent, st: v.stats, cp: v.caps, tk: v.tankId,
       sh: Math.max(0, r1(v.shieldUntil - now)), k: v.kills, sx: v.sessionXp, x: r2(v.x), z: r2(v.z),
-      team: v.team, gp: v.gemPend, xd: v.xpPend, sd: v.shapePend, kd: v.killPend, ev: v.ev, slow: v.slowUntil > now ? 1 : 0,
+      team: v.team, cb: this.inCombat(v) ? r1(v.combatUntil - now) : 0, gp: v.gemPend, xd: v.xpPend, sd: v.shapePend, kd: v.killPend, ev: v.ev, slow: v.slowUntil > now ? 1 : 0,
     };
     v.gemPend = 0; v.xpPend = 0; v.shapePend = 0; v.killPend = 0; v.ev = [];
     const snap = { time: r2(now), ack: v.seq, you: v.id, tk, info, sh, bl, fx, me };
