@@ -19,16 +19,31 @@ export const Input = {
       const t = e.target;
       return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA');
     };
+    // Held-key tracking. A key only counts as held until we see its keyup, OR until anything
+    // happens that can swallow that keyup (focus/menu/pointer-lock changes, OS shortcuts).
+    // Without this, keys get "stuck" and the tank keeps drifting in that direction.
+    const MODS = ['ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'OSLeft', 'OSRight'];
+    const release = () => this.releaseAll();
     window.addEventListener('keydown', (e) => {
       if (isTyping(e)) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab'].includes(e.code)) e.preventDefault();
+      // Browser/OS shortcuts (Ctrl+…, Cmd+…, Alt+…) often never deliver the keyup: don't track them,
+      // and drop everything held because focus may be about to move.
+      if (e.ctrlKey || e.metaKey || (e.altKey && !MODS.includes(e.code))) { release(); return; }
       if (!e.repeat && this.onKey) this.onKey(e.code, e);
-      this.keys.add(e.code);
+      if (!MODS.includes(e.code)) this.keys.add(e.code);
     });
-    window.addEventListener('keyup', (e) => { this.keys.delete(e.code); });
-    window.addEventListener('blur', () => { this.keys.clear(); this.mouse.down = false; this.mouse.right = false; });
+    window.addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+      // macOS never sends keyup for keys released while Cmd is held; Alt/Win can move focus to the OS/browser UI.
+      if (['MetaLeft', 'MetaRight', 'OSLeft', 'OSRight', 'AltLeft', 'AltRight', 'ContextMenu'].includes(e.code)) release();
+    });
+    window.addEventListener('blur', release);
+    document.addEventListener('visibilitychange', release);
+    document.addEventListener('focusin', (e) => { if (isTyping(e)) release(); });
+    // right-click menus anywhere (not just on the 3D view) steal key events
+    window.addEventListener('contextmenu', (e) => { e.preventDefault(); this.keys.clear(); });
 
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('mousedown', (e) => {
       if (e.button === 0) this.mouse.down = true;
       if (e.button === 2) this.mouse.right = true;
@@ -38,6 +53,9 @@ export const Input = {
       if (e.button === 2) this.mouse.right = false;
     });
     window.addEventListener('mousemove', (e) => {
+      // trust the real button state (a release outside the window never fires mouseup)
+      if (!(e.buttons & 1)) this.mouse.down = false;
+      if (!(e.buttons & 2)) this.mouse.right = false;
       this.mouse.x = e.clientX;
       this.mouse.y = e.clientY;
       this.mouse.nx = (e.clientX / window.innerWidth) * 2 - 1;
@@ -51,6 +69,12 @@ export const Input = {
     if ('ontouchstart' in window || navigator.maxTouchPoints > 0) this.setupTouch();
   },
 
+  releaseAll() {
+    this.keys.clear();
+    this.mouse.down = false;
+    this.mouse.right = false;
+  },
+
   down(...codes) { return codes.some((c) => this.keys.has(c)); },
 
   requestLock() { try { this.canvas.requestPointerLock(); } catch { /* not allowed */ } },
@@ -62,6 +86,8 @@ export const Input = {
 
   // move vector in camera space: {f: forward, r: right}
   moveAxes() {
+    // safety net: if the page lost focus without a blur event, nothing can be held
+    if (this.keys.size && typeof document.hasFocus === 'function' && !document.hasFocus()) this.releaseAll();
     let f = 0, r = 0;
     if (this.down('KeyW', 'ArrowUp')) f += 1;
     if (this.down('KeyS', 'ArrowDown')) f -= 1;

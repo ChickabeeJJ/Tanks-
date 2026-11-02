@@ -62,6 +62,11 @@ export class Arena {
 
   // ------------------------------------------------------------------ lifecycle
   async start(mode, roomId) {
+    // when the tab is hidden, tell the server we stopped (no drifting while away)
+    this.onHide = () => {
+      if (document.hidden && this.conn && this.ready) this.conn.send({ t: 'in', s: ++this.seq, mx: 0, mz: 0, a: this.aim, f: 0 });
+    };
+    document.addEventListener('visibilitychange', this.onHide);
     this.mode = mode;
     this.root = new THREE.Group();
     this.G.scene.add(this.root);
@@ -109,6 +114,7 @@ export class Arena {
 
   stop() {
     this.stopped = true;
+    document.removeEventListener('visibilitychange', this.onHide);
     if (this.conn) this.conn.close();
     SDK.hideInviteButton();
     for (const v of this.views.values()) this.disposeView(v);

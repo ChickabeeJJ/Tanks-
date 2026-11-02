@@ -288,6 +288,7 @@ export class World {
     const a = Number(inp.a);
     if (Number.isFinite(a)) t.input.aim = a;
     t.input.fire = !!inp.f;
+    t.lastInputAt = this.time;
     if (Number.isFinite(inp.s)) t.seq = inp.s;
   }
 
@@ -507,6 +508,10 @@ export class World {
         continue;
       }
       if (t.isBot) this.botThink(t);
+      else if (this.time - (t.lastInputAt || 0) > 0.5) {
+        // no input for a while (tab hidden, lag spike): stop instead of drifting on the last input
+        t.input.mx = 0; t.input.mz = 0; t.input.fire = false;
+      }
       const slow = now < t.slowUntil ? 0.55 : 1;
       const sp = t.d.speed * slow;
       const k = Math.min(1, 7 * DT);

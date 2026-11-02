@@ -20,6 +20,7 @@ const G = {
   api: undefined,
 };
 window.__tanks = G; // handy for debugging
+window.__tanks_input = Input;
 
 function progress() { /* no loading screen */ }
 
