@@ -1,0 +1,180 @@
+// 3D models: tanks (dome body + barrels), shapes, bars.
+import * as THREE from '../../vendor/three.module.min.js';
+import { getTank } from '../../shared/tanks.js';
+import { SHAPES, SHAPE_LIST, TEAM_COLORS } from '../../shared/config.js';
+import { skinTexture } from './textures.js';
+
+const geo = {
+  dome: new THREE.SphereGeometry(1, 32, 20),
+  barrel: new THREE.CylinderGeometry(0.5, 0.5, 1, 18, 1),
+  cap: new THREE.CircleGeometry(0.5, 18),
+  spike: new THREE.ConeGeometry(0.35, 1, 8),
+  ring: new THREE.RingGeometry(0.85, 1, 40),
+  disc: new THREE.CircleGeometry(1, 32),
+  plane: new THREE.PlaneGeometry(1, 1),
+};
+geo.barrel.rotateZ(-Math.PI / 2); // along +x
+geo.spike.rotateZ(-Math.PI / 2);
+geo.cap.rotateY(Math.PI / 2);
+geo.ring.rotateX(-Math.PI / 2);
+geo.disc.rotateX(-Math.PI / 2);
+
+const mats = {
+  barrel: new THREE.MeshStandardMaterial({ color: 0x8fd3f7, roughness: 0.55, metalness: 0.05 }),
+  barrelRed: new THREE.MeshStandardMaterial({ color: 0xff9aa2, roughness: 0.55 }),
+  barrelGreen: new THREE.MeshStandardMaterial({ color: 0x9ff0a8, roughness: 0.55 }),
+  barrelPurple: new THREE.MeshStandardMaterial({ color: 0xd2a8ff, roughness: 0.55 }),
+  freeze: new THREE.MeshStandardMaterial({ color: 0xf5fcff, roughness: 0.4 }),
+  flame: new THREE.MeshStandardMaterial({ color: 0x7a7f8c, roughness: 0.6, metalness: 0.2 }),
+  rail: new THREE.MeshStandardMaterial({ color: 0x2a2f3a, roughness: 0.4, metalness: 0.4 }),
+  cap: new THREE.MeshBasicMaterial({ color: 0x0b0f1a }),
+  spike: new THREE.MeshStandardMaterial({ color: 0x55596a, roughness: 0.5, metalness: 0.3 }),
+  shadow: new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.16, depthWrite: false }),
+};
+const teamBarrel = { 1: mats.barrel, 2: mats.barrelRed, 3: mats.barrelGreen, 4: mats.barrelPurple };
+
+const skinMats = new Map();
+function bodyMaterial(skinId) {
+  if (skinMats.has(skinId)) return skinMats.get(skinId);
+  const m = new THREE.MeshStandardMaterial({
+    map: skinTexture(skinId), roughness: skinId === 'gold' ? 0.25 : 0.6, metalness: skinId === 'gold' ? 0.5 : 0.02,
+  });
+  skinMats.set(skinId, m);
+  return m;
+}
+
+// Build a tank. Group origin is on the ground; +x is "forward".
+export function buildTank(tankId, skinId = 'default', team = 0) {
+  const def = getTank(tankId);
+  const R = 2 * def.body.size;
+  const g = new THREE.Group();
+  const rot = new THREE.Group(); // rotates with aim
+  g.add(rot);
+
+  const body = new THREE.Mesh(geo.dome, bodyMaterial(skinId));
+  body.scale.set(R, R * 0.82, R);
+  body.position.y = R * 0.12;
+  body.castShadow = true;
+  rot.add(body);
+
+  const by = R * 0.42;
+  for (const b of def.barrels) {
+    const mat = b.kind === 'freeze' ? mats.freeze : b.kind === 'flame' ? mats.flame : b.kind === 'rail' ? mats.rail : teamBarrel[team] || mats.barrel;
+    const len = b.len * def.body.size, w = b.w * def.body.size, ox = b.ox * def.body.size;
+    const start = R * 0.2;
+    const L = Math.max(0.5, len - start);
+    const piv = new THREE.Group();
+    piv.rotation.y = -b.a;
+    let m;
+    if (b.cone) {
+      const cg = new THREE.CylinderGeometry((w / 2) * b.cone, w * 0.42, 1, 18, 1);
+      cg.rotateZ(-Math.PI / 2);
+      m = new THREE.Mesh(cg, mat);
+    } else m = new THREE.Mesh(geo.barrel, mat);
+    m.scale.set(L, w, w);
+    m.position.set(start + L / 2, by, ox);
+    m.castShadow = true;
+    piv.add(m);
+    const cap = new THREE.Mesh(geo.cap, mats.cap);
+    const cw = w * (b.cone || 1) * 0.82;
+    cap.scale.set(cw, cw, cw);
+    cap.position.set(start + L + 0.01, by, ox);
+    piv.add(cap);
+    rot.add(piv);
+  }
+
+  let spikes = null;
+  if (def.body.spikes) {
+    spikes = new THREE.Group();
+    const n = def.body.spikes === 1 ? 8 : def.body.spikes === 2 ? 12 : 16;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      const s = new THREE.Mesh(geo.spike, mats.spike);
+      const L = R * (def.body.spikes === 3 ? 0.75 : 0.6);
+      s.scale.set(L, R * 0.55, R * 0.55);
+      s.position.set(Math.cos(a) * (R * 0.85 + L / 2), R * 0.3, -Math.sin(a) * (R * 0.85 + L / 2));
+      s.rotation.y = a;
+      s.castShadow = true;
+      spikes.add(s);
+    }
+    g.add(spikes);
+  }
+
+  const shadow = new THREE.Mesh(geo.disc, mats.shadow);
+  shadow.scale.setScalar(R * 1.05);
+  shadow.position.y = 0.03;
+  g.add(shadow);
+
+  let ring = null;
+  if (team) {
+    ring = new THREE.Mesh(geo.ring, new THREE.MeshBasicMaterial({ color: TEAM_COLORS[team], transparent: true, opacity: 0.75, depthWrite: false }));
+    ring.scale.setScalar(R * 1.35);
+    ring.position.y = 0.06;
+    g.add(ring);
+  }
+
+  return { group: g, rot, body, spikes, R, def };
+}
+
+export function setTankOpacity(model, a) {
+  model.group.traverse((o) => {
+    if (o.isMesh) {
+      if (!o.userData.cloned) { o.material = o.material.clone(); o.userData.cloned = true; }
+      o.material.transparent = a < 1;
+      o.material.opacity = a;
+    }
+  });
+}
+
+export function disposeTank(model) {
+  model.group.traverse((o) => {
+    if (o.isMesh && o.userData.cloned) o.material.dispose();
+    if (o.isMesh && o.geometry !== geo.barrel && !Object.values(geo).includes(o.geometry)) o.geometry.dispose();
+  });
+}
+
+// ------------------------------------------------------------------ shapes
+export function shapeGeometry(type) {
+  const s = SHAPES[type];
+  let g;
+  if (s.sides === 4) {
+    const a = s.r * 1.42;
+    g = new THREE.BoxGeometry(a, s.h * (type === 'cube' ? 0.9 : 1), a);
+  } else {
+    g = new THREE.CylinderGeometry(s.r, s.r, s.h, s.sides, 1);
+  }
+  g.translate(0, (type === 'cube' ? s.h * 0.9 : s.h) / 2 + 0.05, 0);
+  return g;
+}
+
+export function shapeMaterial(type) {
+  return new THREE.MeshStandardMaterial({ color: SHAPES[type].color, roughness: 0.45, metalness: 0.0, flatShading: true });
+}
+
+export const SHAPE_TYPES = SHAPE_LIST;
+
+// ------------------------------------------------------------------ billboard health bar
+export class Bar {
+  constructor(w, h, color, bg = 0x5b6270) {
+    this.group = new THREE.Group();
+    this.w = w;
+    const bgm = new THREE.MeshBasicMaterial({ color: bg, transparent: true, opacity: 0.85, depthWrite: false, depthTest: false });
+    const fgm = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, depthWrite: false, depthTest: false });
+    this.bg = new THREE.Mesh(geo.plane, bgm);
+    this.bg.scale.set(w + 0.3, h + 0.3, 1);
+    this.fg = new THREE.Mesh(geo.plane, fgm);
+    this.fg.scale.set(w, h, 1);
+    this.bg.renderOrder = 10;
+    this.fg.renderOrder = 11;
+    this.group.add(this.bg, this.fg);
+    this.value = 1;
+  }
+  set(v) {
+    v = Math.max(0, Math.min(1, v));
+    this.value = v;
+    this.fg.scale.x = Math.max(0.001, this.w * v);
+    this.fg.position.x = -(this.w * (1 - v)) / 2;
+  }
+  color(c) { this.fg.material.color.setHex(c); }
+  dispose() { this.bg.material.dispose(); this.fg.material.dispose(); }
+}
