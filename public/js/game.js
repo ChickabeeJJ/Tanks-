@@ -245,11 +245,6 @@ export class Arena {
   }
 
   async respawn() {
-    // natural break: show a midgame ad at most every 3 minutes
-    if (performance.now() - this.lastAd > 180000) {
-      this.lastAd = performance.now();
-      await SDK.ad('midgame');
-    }
     if (!this.stopped) this.conn.send({ t: 'respawn' });
   }
 

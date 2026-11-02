@@ -106,12 +106,12 @@ export function createMenus(G) {
             <div class="box center" style="background:linear-gradient(#7ff58f,#36c95a);color:#fff">
               <div class="big stroke">Starterpack</div>
               <div class="row center" style="gap:40px;margin:8px 0"><div class="stroke"><div class="big">XP</div>+${fmtFull(xp)}</div><div class="stroke"><div class="big">Gems</div>+1,500</div></div>
-              <button class="btn yellow stroke" ${claimed ? 'disabled' : ''}>${claimed ? 'Come back tomorrow' : `${ic('tv', 24)} Watch Ad - FREE`}</button>
+              <button class="btn yellow stroke" ${claimed ? 'disabled' : ''}>${claimed ? 'Come back tomorrow' : 'Claim FREE'}</button>
             </div>
-            <div class="muted center">Free daily pack. Supports the game!</div></div>`));
+            <div class="muted center">Free daily pack. Come back every day!</div></div>`));
           b.querySelector('button').addEventListener('click', async () => {
             if (d.store.starterDay === dayId()) return;
-            if (await G.rewarded()) {
+            {
               d.store.starterDay = dayId();
               say(profile.grant({ xp, gems: 1500 }));
               Audio.reward();
@@ -123,10 +123,10 @@ export function createMenus(G) {
           STORE_GEMS.forEach((p, i) => {
             const left = d.store.gemsAt[i] - Date.now();
             const row = h(`<div class="box row between"><div class="row">${ic('gem', 40)}<div><div class="big">${p.name}</div><div class="muted">+${fmtFull(p.gems)} Gems</div></div></div>
-              <button class="btn green stroke" ${left > 0 ? 'disabled' : ''}>${left > 0 ? timeLeft(left) : `${ic('tv', 24)} Watch Ad`}</button></div>`);
+              <button class="btn green stroke" ${left > 0 ? 'disabled' : ''}>${left > 0 ? timeLeft(left) : 'Claim FREE'}</button></div>`);
             row.querySelector('button').addEventListener('click', async () => {
               if (d.store.gemsAt[i] > Date.now()) return;
-              if (await G.rewarded()) {
+              {
                 d.store.gemsAt[i] = Date.now() + p.cd * 1000;
                 say(profile.grant({ gems: p.gems }));
                 Audio.reward();
@@ -238,7 +238,8 @@ export function createMenus(G) {
               Audio.reward();
               st.redraw();
             } else if (t.id === 'ad' && !fin) {
-              if (await G.rewarded()) { profile.d.rank.ad = 1; profile.addGems(150); st.redraw(); }
+              close();
+              wheel();
             } else if (t.id === 'invite' && !fin) {
               G.invite();
               profile.d.rank.invite = 1;
@@ -443,22 +444,16 @@ export function createMenus(G) {
       title: 'Wheel', icon: 'wheel', tick: (st) => { if (!spinning) st.el.querySelector('#wh-free') && (st.el.querySelector('#wh-free').textContent = freeTxt()); },
       render(b, st) {
         const spins = profile.wheelSpins();
-        const adLeft = profile.adSpinsLeft();
         b.appendChild(h(`<div class="col center" style="align-items:center">
           <div id="wheelwrap"><img id="wheel" src="${wheelCanvas()}" style="transform:rotate(${wheelRot}deg)"><div id="wheelptr"></div></div>
           <div class="row center"><button class="btn yellow stroke" id="wh-spin">${ic('wheel', 20)} Spin</button><button class="btn stroke" id="wh-odds">${ic('dice', 20)} Odds</button><button class="btn ${fast ? 'green' : ''} stroke" id="wh-fast">${ic('fire', 20)} Fast</button></div>
           <div class="big">${spins} Spin${spins === 1 ? '' : 's'}</div>
           <div class="muted" id="wh-free">${freeTxt()}</div>
-          <button class="btn green stroke" id="wh-ad" ${adLeft ? '' : 'disabled'}>${ic('tv', 20)} Watch Ad: +1 Spin (${adLeft} left today)</button>
           <div id="wh-oddslist" class="box ${showOdds ? '' : 'hidden'}" style="width:100%"></div></div>`));
         const ol = b.querySelector('#wh-oddslist');
         ol.innerHTML = '<div class="big">Chances</div>' + WHEEL.slice().sort((a, c) => a.odds - c.odds).map((s) => `<div class="row between"><span>${s.tank ? s.label : s.gems ? `+${fmtFull(s.gems)} Gems` : `+${fmtFull(profile.xpLv(s.xpLv))} XP`}</span><b>${s.odds}%</b></div>`).join('');
         b.querySelector('#wh-odds').onclick = () => { showOdds = !showOdds; ol.classList.toggle('hidden', !showOdds); };
         b.querySelector('#wh-fast').onclick = () => { fast = !fast; st.redraw(); };
-        b.querySelector('#wh-ad').onclick = async () => {
-          if (!profile.adSpinsLeft()) return;
-          if (await G.rewarded()) { profile.d.wheel.adSpins++; profile.d.wheel.spins++; profile.emit('wheel'); st.redraw(); }
-        };
         b.querySelector('#wh-spin').onclick = () => {
           if (spinning) return;
           const res = profile.spinWheel();

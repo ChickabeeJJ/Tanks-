@@ -6,7 +6,6 @@ export const SDK = {
   sdk: null,
   env: 'disabled',
   playing: false,
-  adPlaying: false,
   settings: { muteAudio: false, disableChat: false },
 
   async init() {
@@ -51,56 +50,8 @@ export const SDK = {
   happytime() { this.call((s) => s.game.happytime()); },
 
   onAudioChange(f) { muteListeners.add(f); },
-  get muted() { return this.adPlaying || !!this.settings.muteAudio; },
+  get muted() { return !!this.settings.muteAudio; },
   get chatDisabled() { return !!this.settings.disableChat; },
-
-  // type: 'midgame' | 'rewarded'. Resolves true when the ad finished (reward granted).
-  ad(type) {
-    return new Promise((resolve) => {
-      if (!this.sdk) {
-        // No SDK (local/dev): simulate a short ad so rewarded flows can be tested.
-        if (type === 'rewarded') {
-          this._fakeAd().then(() => resolve(true));
-        } else resolve(false);
-        return;
-      }
-      const wasPlaying = this.playing;
-      let done = false;
-      const finish = (ok) => {
-        if (done) return;
-        done = true;
-        this.adPlaying = false;
-        muteListeners.forEach((f) => f());
-        if (wasPlaying) this.gameplayStart();
-        resolve(ok);
-      };
-      try {
-        this.sdk.ad.requestAd(type, {
-          adStarted: () => {
-            this.adPlaying = true;
-            muteListeners.forEach((f) => f());
-            if (wasPlaying) this.gameplayStop();
-          },
-          adFinished: () => finish(true),
-          adError: () => finish(false),
-        });
-      } catch {
-        finish(false);
-      }
-    });
-  },
-
-  _fakeAd() {
-    return new Promise((res) => {
-      const el = document.createElement('div');
-      el.className = 'fake-ad';
-      el.innerHTML = '<div>Rewarded ad placeholder<br><small>(the real ad shows on CrazyGames)</small></div>';
-      document.body.appendChild(el);
-      this.adPlaying = true;
-      muteListeners.forEach((f) => f());
-      setTimeout(() => { el.remove(); this.adPlaying = false; muteListeners.forEach((f) => f()); res(); }, 1200);
-    });
-  },
 
   async getUser() {
     if (!this.sdk) return null;

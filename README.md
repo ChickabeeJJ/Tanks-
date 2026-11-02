@@ -24,21 +24,21 @@ If the page can't reach a server, it runs the same simulation in the browser wit
 | Tank tree | ~50 tanks over tiers Lv 15 / 30 / 42 / 110 (Double → Triway → Fiveway → Phoenix, Scout → Hitman → Ace/Shadow, Spammer, Side, Grinder/Spiker melee, Freezer, Flame, Railgun, Blast Lord, Orbitron…). Some cost gems, some come from quests, chests or the wheel. |
 | Keys | **Q** tank upgrades · **E** stats (**1-8**) · **F** auto fire · **R** auto spin · **C** turn 180° · **Shift** camera lock · **X** index · **G** gifts · **Enter** chat · WASD + mouse · right-drag rotates the camera · scroll zooms |
 | Progress | Persistent level (Lv 400 needs ~90K XP, like the original). Stat points scale with level, and stat caps can be raised in the Upgrades Shop. |
-| Meta | Rank (Bronze → Legend, with daily tasks), Daily/Weekly/Unique/Event quests, playtime Gifts, Wheel (free spin every 4h + ad spins), Frozen/Lava chests (with a free daily chest), Bag, Index, Store |
+| Meta | Rank (Bronze → Legend, with daily tasks), Daily/Weekly/Unique/Event quests, playtime Gifts, Wheel (free spin every 4h), Frozen/Lava chests (with a free daily chest), Bag, Index, Store |
 | Mobile | Twin virtual joysticks and a compact HUD |
 
-### Robux → CrazyGames
+### Robux → CrazyGames (no ads in this launch)
 
-Things the Roblox game sells for Robux are rewarded ads here, or free:
+This basic launch has **no ads**. Things the Roblox game sells for Robux are free here, on timers:
 
-- Starter pack, gem packs, wheel spins and the "+XP" button are **rewarded ads**.
-- Midgame ads run only at natural breaks (respawning or going back to the lobby), at most every 2-3 minutes.
+- Starter pack: free once a day. Gem packs: free, each on its own cooldown.
+- The "+XP" button: free every 3 minutes. Wheel: one free spin every 4 hours, plus spins from gifts.
+- The Rank task "Buy a Product" became "Spin the Wheel".
 - Trading and gifting to friends are left out: they need account-bound inventories, which CrazyGames doesn't provide.
 
 ### CrazyGames SDK usage (`public/js/sdk.js`)
 
 - `loadingStart/Stop`, `gameplayStart/Stop` (on spawn, death and lobby), and `happytime` on kills, rank-ups and chests.
-- `ad.requestAd('midgame' | 'rewarded')`, with audio muted and gameplay paused during ads.
 - `data.getItem/setItem` for saves (level, XP, gems, unlocks, quests). Every save is written to the CrazyGames data module **and** a localStorage mirror; on load the copy with the most progress wins. Level-ups save immediately.
 - `user.getUser` for the default name.
 - `game.inviteLink`, `showInviteButton`, `getInviteParam('room')` and `isInstantMultiplayer`, so invites land in the same server.

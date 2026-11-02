@@ -52,7 +52,7 @@ export const MAX_RANK = 30;
 export const RANK_TASKS = [
   { id: 'tomorrow', label: 'Join Tomorrow', pts: 250, max: 1 },
   { id: 'play5', label: 'Play for 5 mins', pts: 15, max: 4 },
-  { id: 'ad', label: 'Watch an Ad', pts: 150, max: 1 },
+  { id: 'ad', label: 'Spin the Wheel', pts: 150, max: 1 },
   { id: 'invite', label: 'Invite a Friend', pts: 50, max: 1 },
   { id: 'kill', label: 'Get a Kill', pts: 20, max: 5 },
 ];
@@ -324,14 +324,10 @@ export const profile = {
     if (this.wheelFreeReady()) { this.d.wheel.spins++; this.d.wheel.nextFree = Date.now() + 4 * 3600e3; this.save(); }
     return this.d.wheel.spins;
   },
-  adSpinsLeft() {
-    const w = this.d.wheel;
-    if (w.adDay !== dayId()) { w.adDay = dayId(); w.adSpins = 0; }
-    return Math.max(0, 10 - w.adSpins);
-  },
   spinWheel() {
     if (this.wheelSpins() <= 0) return null;
     this.d.wheel.spins--;
+    this.d.rank.ad = 1; // rank task: spin the wheel
     const total = WHEEL.reduce((a, s) => a + s.odds, 0);
     let r = Math.random() * total, idx = 0;
     for (let i = 0; i < WHEEL.length; i++) { r -= WHEEL[i].odds; if (r <= 0) { idx = i; break; } }

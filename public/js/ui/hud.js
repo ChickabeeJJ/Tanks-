@@ -50,7 +50,7 @@ export function createHUD(G) {
       <div class="rbtn big" id="b-quest">${ic('clipboard', 46)}<span class="lbl">Quest</span><span class="badge hidden"></span></div>
     </div>
     <div class="rbtn wbtn" id="b-rank"><span class="lbl rk">Rank 1</span>${ic('shield', 30)}<span class="badge hidden"></span></div>
-    <div class="rbtn wbtn" id="xpad" title="Watch an ad for XP"><span class="lbl v">+0</span>${ic('star', 30)}</div>
+    <div class="rbtn wbtn" id="xpad" title="Free XP (every 3 minutes)"><span class="lbl v">+0</span>${ic('star', 30)}</div>
   </div>
   <div id="bottomright">
     <div class="rbtn tog" id="t-fire" title="Auto fire (F)">${ic('burst', 30)}<span class="key l">F</span></div>
@@ -85,7 +85,7 @@ export function createHUD(G) {
   click('#b-gifts', () => G.menus.open('gifts'));
   click('#b-quest', () => G.menus.open('quests'));
   click('#b-rank', () => G.menus.open('rank'));
-  click('#xpad', () => G.adXp());
+  click('#xpad', () => G.claimXp());
   click('#playbtn', () => G.play('ffa'));
   click('#qbtn', () => hud.toggleQ());
   click('#ebtn', () => hud.toggleE());

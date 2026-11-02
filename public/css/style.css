@@ -13,7 +13,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #bfe4ff; fon
 #ui { position: fixed; inset: 0; pointer-events: none; color: #fff; }
 #ui * { pointer-events: auto; }
 .hidden { display: none !important; }
-.ic { display: inline-block; vertical-align: -0.22em; flex-shrink: 0; overflow: visible; filter: drop-shadow(0 2px 0 rgba(15, 42, 77, .35)); }
+.ic { display: inline-block; vertical-align: -0.22em; flex-shrink: 0; overflow: visible; }
 
 /* Roblox-style white text with a thick navy outline */
 .lbl, .stroke {
@@ -22,13 +22,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #bfe4ff; fon
     0 -2.5px 0 var(--ink), 0 2.5px 0 var(--ink), -2.5px 0 0 var(--ink), 2.5px 0 0 var(--ink), 0 4px 0 rgba(15, 42, 77, .45);
 }
 .stroke-s { color: #fff; font-weight: 700; text-shadow: -1.5px -1.5px 0 var(--ink), 1.5px -1.5px 0 var(--ink), -1.5px 1.5px 0 var(--ink), 1.5px 1.5px 0 var(--ink), 0 2px 0 rgba(15,42,77,.35); }
-
-/* ---------------------------------------------------------------- loading */
-#loading { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: linear-gradient(#3aa6ff, #bfe6ff 60%, #ffffff); z-index: 50; }
-#loading h1 { font-size: 80px; margin: 0 0 18px; letter-spacing: 2px; }
-#loading .bar { width: min(420px, 80vw); height: 28px; border: 4px solid var(--ink); border-radius: 14px; background: #fff7d6; overflow: hidden; }
-#loading .bar div { height: 100%; width: 0; background: linear-gradient(var(--yel-a), var(--yel-b) 55%, var(--yel-c)); transition: width .2s; }
-#loading p { color: var(--ink); font-weight: 700; }
 
 /* ---------------------------------------------------------------- buttons (copied from the original) */
 .rbtn {

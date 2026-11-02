@@ -18,16 +18,10 @@ const G = {
   arena: null,
   lobby: null,
   api: undefined,
-  lastAd: performance.now(),
 };
 window.__tanks = G; // handy for debugging
 
-function progress(p, text) {
-  const bar = document.querySelector('#loading .bar div');
-  if (bar) bar.style.width = p + '%';
-  const t = document.querySelector('#loading p');
-  if (t && text) t.textContent = text;
-}
+function progress() { /* no loading screen */ }
 
 // ------------------------------------------------------------------ server helpers
 async function api() {
@@ -68,10 +62,6 @@ G.play = async (mode, roomId) => {
 G.toLobby = async (skipAd) => {
   if (G.arena) { G.arena.stop(); G.arena = null; }
   G.menus.close();
-  if (!skipAd && performance.now() - G.lastAd > 120000) {
-    G.lastAd = performance.now();
-    await SDK.ad('midgame');
-  }
   G.state = 'lobby';
   G.hud.setMode('lobby');
   G.lobby = new Lobby(G);
@@ -91,25 +81,15 @@ G.leaveMatch = () => {
   G.toLobby();
 };
 
-G.rewarded = async () => {
-  const ok = await SDK.ad('rewarded');
-  if (ok) {
-    if (!profile.d.rank.ad) { profile.d.rank.ad = 1; profile.save(); }
-    G.lastAd = performance.now();
-  } else G.hud.toast('Ad not available right now, try again later', 'red');
-  return ok;
-};
-
-G.adXp = async () => {
+// Free XP button (claimable every 3 minutes).
+G.claimXp = () => {
   const left = profile.d.store.xpAdAt - Date.now();
-  if (left > 0) { G.hud.toast(`XP reward ready in ${Math.ceil(left / 1000)}s`, 'red'); return; }
-  if (await G.rewarded()) {
-    const v = profile.xpLv(0.25);
-    profile.d.store.xpAdAt = Date.now() + 180000;
-    profile.addXp(v);
-    G.hud.toast(`Received +${v.toLocaleString()} XP!`, 'green');
-    Audio.reward();
-  }
+  if (left > 0) { G.hud.toast(`Free XP ready in ${Math.ceil(left / 1000)}s`, 'red'); return; }
+  const v = profile.xpLv(0.25);
+  profile.d.store.xpAdAt = Date.now() + 180000;
+  profile.addXp(v);
+  G.hud.toast(`Received +${v.toLocaleString()} XP!`, 'green');
+  Audio.reward();
 };
 
 G.invite = async () => {
@@ -198,7 +178,6 @@ async function boot() {
   await api();
   progress(100, 'Ready!');
   SDK.loadingStop();
-  document.getElementById('loading').remove();
   window.addEventListener('pointerdown', () => Audio.unlock(), { once: true });
   window.addEventListener('beforeunload', () => profile.saveNow());
   document.addEventListener('visibilitychange', () => { if (document.hidden) profile.saveNow(); });
