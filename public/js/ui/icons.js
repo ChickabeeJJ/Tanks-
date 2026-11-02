@@ -28,7 +28,7 @@ const P = {
   x: `<path d="M14 14l36 36M50 14L14 50" ${L('#fff', 10)}/>`,
   check: `<path d="M10 34l14 14 30-32" ${L('#5be37a', 9)}/>`,
   clock: `<circle cx="32" cy="33" r="24" fill="#fff"/><path d="M32 18v15l10 7" ${L('#3a4a63', 5)}/>`,
-  chest: `<path d="M8 28h48v26H8z" fill="#9fe6ff"/><path d="M8 28c0-14 8-20 24-20s24 6 24 20z" fill="#d6f6ff"/><rect x="27" y="26" width="10" height="12" rx="2" fill="#6fa7c4"/>`,
+  chest: `<polygon points="14,14 50,14 58,30 6,30" fill="#c7ecff"/><polygon points="14,14 50,14 46,8 18,8" fill="#e9f8ff"/><polygon points="6,30 58,30 55,58 9,58" fill="#7fc3e6"/><polygon points="9,44 55,44 55,58 9,58" fill="#4f9fcf"/><polygon points="28,8 36,8 37,58 27,58" fill="#ffd21f"/><polygon points="32,34 39,40 32,50 25,40" fill="#5fe3ff"/>`,
   wheel: `<path d="M32 32V6A26 26 0 0 1 54.5 19z" fill="#ff9f1c"/><path d="M32 32l22.5-13A26 26 0 0 1 54.5 45z" fill="#2ec4f1"/><path d="M32 32l22.5 13A26 26 0 0 1 32 58z" fill="#3bd16f"/><path d="M32 32v26A26 26 0 0 1 9.5 45z" fill="#ff3d6e"/><path d="M32 32L9.5 45A26 26 0 0 1 9.5 19z" fill="#b14cf0"/><path d="M32 32L9.5 19A26 26 0 0 1 32 6z" fill="#ffd23f"/><circle cx="32" cy="32" r="6" fill="#fff"/>`,
   skull: `<path d="M32 6c14 0 24 9 24 22 0 8-4 12-8 14v10H16V42c-4-2-8-6-8-14C8 15 18 6 32 6z" fill="#fff"/><circle cx="23" cy="30" r="6" fill="#3a4a63"/><circle cx="41" cy="30" r="6" fill="#3a4a63"/>`,
   sword: `<path d="M44 6h14v14L30 48l-14-14z" fill="#e6eef7"/><path d="M12 36l16 16-6 4-14-14z" fill="#ffc21a"/><path d="M6 52l6 6" ${L('#8a5a10', 8)}/>`,

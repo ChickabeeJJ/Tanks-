@@ -102,61 +102,81 @@ export const Input = {
     return this.mouse.down || this.down('Space') || (this.joyAim.active && this.joyAim.mag > 0.35);
   },
 
+  // Floating joysticks: touch the empty game area to spawn a stick under your thumb.
+  // Left half = move. Right half = aim + shoot in battle (camera turn in the lobby).
+  // Buttons are DOM elements above the canvas, so a stick can never cover or block them.
+  touchMode: 'lobby',
   setupTouch() {
     this.touch = true;
     document.body.classList.add('touch');
     const root = document.getElementById('touch');
-    const mk = (side) => {
+    const mk = (kind) => {
       const base = document.createElement('div');
-      base.className = 'joy ' + side;
-      const knob = document.createElement('div');
-      knob.className = 'knob';
-      base.appendChild(knob);
+      base.className = 'joy ' + kind;
+      base.innerHTML = `<div class="ring"></div><div class="knob"><svg viewBox="0 0 24 24">${kind === 'move'
+        ? '<path d="M12 3l3 4h-6zM12 21l-3-4h6zM3 12l4-3v6zM21 12l-4 3V9z" fill="currentColor"/>'
+        : '<circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 1v5M12 18v5M1 12h5M18 12h5" stroke="currentColor" stroke-width="2.4"/>'}</svg></div>`;
       root.appendChild(base);
-      return { base, knob };
+      return { base, knob: base.querySelector('.knob') };
     };
-    const L = mk('left'), R = mk('right');
-    const bind = (j, state) => {
-      let id = null, cx = 0, cy = 0;
-      const rad = 55;
-      j.base.addEventListener('touchstart', (e) => {
-        const t = e.changedTouches[0];
-        id = t.identifier;
-        const r = j.base.getBoundingClientRect();
-        cx = r.left + r.width / 2;
-        cy = r.top + r.height / 2;
-        state.active = true;
-        move(t);
-        e.preventDefault();
-      }, { passive: false });
-      const move = (t) => {
-        let dx = t.clientX - cx, dy = t.clientY - cy;
-        const m = Math.hypot(dx, dy);
-        if (m > rad) { dx = (dx / m) * rad; dy = (dy / m) * rad; }
-        state.x = dx / rad;
-        state.y = dy / rad;
-        state.mag = Math.min(1, m / rad);
-        j.knob.style.transform = `translate(${dx}px,${dy}px)`;
-      };
-      window.addEventListener('touchmove', (e) => {
-        for (const t of e.changedTouches) if (t.identifier === id) { move(t); e.preventDefault(); }
-      }, { passive: false });
-      const end = (e) => {
-        for (const t of e.changedTouches) if (t.identifier === id) {
-          id = null; state.active = false; state.x = state.y = state.mag = 0;
-          j.knob.style.transform = '';
+    const sticks = { move: mk('move'), aim: mk('aim') };
+    const R = 58;
+    const active = {}; // touch id -> { kind, cx, cy, lx }
+    const show = (kind, x, y) => {
+      const j = sticks[kind];
+      j.base.style.left = x + 'px';
+      j.base.style.top = y + 'px';
+      j.base.classList.add('on');
+      j.knob.style.transform = 'translate(-50%,-50%)';
+    };
+    const hide = (kind) => { sticks[kind].base.classList.remove('on'); };
+    const stateOf = (kind) => (kind === 'move' ? this.joyMove : this.joyAim);
+    this.canvas.addEventListener('touchstart', (e) => {
+      for (const t of e.changedTouches) {
+        const left = t.clientX < window.innerWidth / 2;
+        let kind = left ? 'move' : 'aim';
+        if (!left && this.touchMode !== 'arena') kind = 'cam';
+        if (Object.values(active).some((a) => a.kind === kind)) continue;
+        active[t.identifier] = { kind, cx: t.clientX, cy: t.clientY, lx: t.clientX };
+        if (kind !== 'cam') {
+          show(kind, t.clientX, t.clientY);
+          const st = stateOf(kind);
+          st.active = true; st.x = 0; st.y = 0; st.mag = 0;
         }
-      };
-      window.addEventListener('touchend', end);
-      window.addEventListener('touchcancel', end);
-    };
-    bind(L, this.joyMove);
-    bind(R, this.joyAim);
-    // one-finger drag on empty canvas rotates the camera
-    let cid = null, lx = 0;
-    this.canvas.addEventListener('touchstart', (e) => { const t = e.changedTouches[0]; cid = t.identifier; lx = t.clientX; }, { passive: true });
+      }
+      e.preventDefault();
+    }, { passive: false });
     this.canvas.addEventListener('touchmove', (e) => {
-      for (const t of e.changedTouches) if (t.identifier === cid) { this.dragYaw += (t.clientX - lx) * 1.5; lx = t.clientX; }
-    }, { passive: true });
+      for (const t of e.changedTouches) {
+        const a = active[t.identifier];
+        if (!a) continue;
+        if (a.kind === 'cam') { this.dragYaw += (t.clientX - a.lx) * 1.5; a.lx = t.clientX; continue; }
+        let dx = t.clientX - a.cx, dy = t.clientY - a.cy;
+        const m = Math.hypot(dx, dy);
+        if (m > R) { // the stick follows your thumb if you drag past the edge
+          a.cx += (dx / m) * (m - R); a.cy += (dy / m) * (m - R);
+          sticks[a.kind].base.style.left = a.cx + 'px';
+          sticks[a.kind].base.style.top = a.cy + 'px';
+          dx = t.clientX - a.cx; dy = t.clientY - a.cy;
+        }
+        const st = stateOf(a.kind);
+        st.x = dx / R; st.y = dy / R; st.mag = Math.min(1, Math.hypot(dx, dy) / R);
+        sticks[a.kind].knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      }
+      e.preventDefault();
+    }, { passive: false });
+    const end = (e) => {
+      for (const t of e.changedTouches) {
+        const a = active[t.identifier];
+        if (!a) continue;
+        delete active[t.identifier];
+        if (a.kind === 'cam') continue;
+        const st = stateOf(a.kind);
+        st.active = false; st.x = st.y = st.mag = 0;
+        hide(a.kind);
+      }
+    };
+    this.canvas.addEventListener('touchend', end);
+    this.canvas.addEventListener('touchcancel', end);
   },
 };

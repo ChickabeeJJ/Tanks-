@@ -3,7 +3,7 @@ import * as THREE from '../vendor/three.module.min.js';
 import { placeSun } from './render/scene.js';
 import { DT, SHAPE_LIST, SHAPES, MODES, FX, TEAM_COLORS, BULLET_KINDS } from '../shared/config.js';
 import { getTank, derived, childrenOf, canUse, TANKS } from '../shared/tanks.js';
-import { predictMove } from '../shared/world.js';
+import { predictMove, mapWalls } from '../shared/world.js';
 import { fmt, fmtFull } from '../shared/progression.js';
 import { buildTank, disposeTank, setTankOpacity, shapeGeometry, shapeMaterial, Bar } from './render/models.js';
 import { buildArena } from './render/scene.js';
@@ -27,6 +27,7 @@ const K_FLAME = BULLET_KINDS.indexOf('flame');
 const K_FREEZE = BULLET_KINDS.indexOf('freeze');
 const K_RAIL = BULLET_KINDS.indexOf('rail');
 const UP_Z = new THREE.Vector3(0, 0, 1);
+const FLAME_COLS = [0xff7a1a, 0xffa030, 0xffd23f, 0xff5a1a];
 const RAIL_CORE = new THREE.Color(1.6, 3.2, 3.6); // HDR: blooms
 const RAIL_GLOW = new THREE.Color(0.2, 1.4, 2.4);
 const RAIL_CORE_E = new THREE.Color(3.4, 1.5, 2.0);
@@ -105,7 +106,8 @@ export class Arena {
     this.half = m.half;
     this.teams = m.teams;
     this.modeDef = MODES[m.mode] || MODES.ffa;
-    this.root.add(buildArena(this.half, this.modeDef));
+    this.walls = mapWalls(m.mode, this.half);
+    this.root.add(buildArena(this.half, this.modeDef, this.walls));
     this.buildPools();
     this.ready = true;
     this.G.hud.toast(`Joined ${this.modeDef.name}!`, 'blue', 2600);
@@ -163,6 +165,11 @@ export class Arena {
     this.railGlow = new THREE.InstancedMesh(beam, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }), 64);
     for (const m of [this.railCore, this.railGlow]) { m.count = 0; m.frustumCulled = false; this.root.add(m); }
     this.railBeamGeo = beam;
+    this.flameMesh = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.42, depthWrite: false }), 1500);
+    this.flameMesh.count = 0;
+    this.flameMesh.frustumCulled = false;
+    this.flameMesh.renderOrder = 3;
+    this.root.add(this.flameMesh);
     this.streaks = [];
     // particles (pops, confetti, deaths)
     this.parts = [];
@@ -531,7 +538,7 @@ export class Arena {
       this.prev.x = this.pred.x;
       this.prev.z = this.pred.z;
       if (this.alive && d) {
-        predictMove(this.pred, mx, mz, d.speed * (me.slow ? 0.55 : 1), this.half, d.r, DT);
+        predictMove(this.pred, mx, mz, d.speed * (me.slow ? 0.55 : 1), this.half, d.r, DT, this.walls);
         this.hist.push({ seq: this.seq, x: this.pred.x, z: this.pred.z });
         if (this.hist.length > 90) this.hist.shift();
       }
@@ -688,7 +695,7 @@ export class Arena {
     // --- bullets
     const aBl = A.blMap || (A.blMap = new Map(A.bl.map((b) => [b[0], b])));
     const bm = this.bulletMesh;
-    let n = 0, rn = 0;
+    let n = 0, rn = 0, fn = 0;
     const myTeam = this.me ? this.me.team : 0;
     for (const b of B.bl) {
       if (n >= 3000) break;
@@ -696,8 +703,16 @@ export class Arena {
       const x = lerp(a[1], b[1], t), z = lerp(a[2], b[2], t), r = b[3];
       const k = b[4];
       let color = BULLET_COLORS[b[5] === 0 && this.teams ? myTeam : b[5]] || 0x5cc8ff;
-      if (k === K_FLAME) color = Math.random() < 0.5 ? 0xffa030 : 0xffd23f;
-      else if (k === K_FREEZE) color = 0xe8fbff;
+      if (k === K_FLAME) {
+        // translucent flame puffs (own mesh, see-through)
+        const fr = r * 1.15;
+        this.m4.makeScale(fr, fr, fr);
+        this.m4.setPosition(x, Math.max(fr, 0.9), z);
+        this.flameMesh.setMatrixAt(fn, this.m4);
+        this.flameMesh.setColorAt(fn, this.col.setHex(FLAME_COLS[(b[0] * 7) % FLAME_COLS.length]));
+        fn++;
+        continue;
+      } else if (k === K_FREEZE) color = 0xe8fbff;
       else if (k === K_RAIL) {
         // neon beam stretched back along its flight direction
         let dx = b[1] - a[1], dz = b[2] - a[2];
@@ -727,6 +742,9 @@ export class Arena {
     bm.count = n;
     bm.instanceMatrix.needsUpdate = true;
     if (bm.instanceColor) bm.instanceColor.needsUpdate = true;
+    this.flameMesh.count = fn;
+    this.flameMesh.instanceMatrix.needsUpdate = true;
+    if (this.flameMesh.instanceColor) this.flameMesh.instanceColor.needsUpdate = true;
     for (const m of [this.railCore, this.railGlow]) {
       m.count = rn;
       m.instanceMatrix.needsUpdate = true;

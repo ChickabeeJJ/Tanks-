@@ -19,6 +19,7 @@ If the page can't reach a server, it runs the same simulation in the browser wit
 | Area | Details |
 |---|---|
 | Lobby | A compact 3D hub with flat metal walls. Large pads spread around the room open **Skins Shop, Upgrades Shop, Chests, Tanks Shop, Wheel**. Drive into a portal to play. No leaderboards. |
+| Maps | Large floating arenas with cover walls (tanks and bullets collide with them; bots steer around them). |
 | Servers | **Battle** (FFA), **Red VS Blue**, **4 Teams**. Roblox-style live servers: up to 7 players each, empty slots filled by up to 6 bots. Servers keep running when players die or leave (one per mode is always on), and rejoining drops you back into the running server. |
 | Arena | Anchored shapes (they never move): yellow cubes, blue cubes, pink pentagons, purple hexagons and big cyan Alphas, richer toward the center. XP, gems, a 30s spawn shield, health regen, team bases. A **Lobby** button (bottom-left) returns you to the hub; if you were hit by a tank in the last 10 seconds it turns red, and leaving (or disconnecting) counts as a kill for your attacker. |
 | Tank tree | ~50 tanks over tiers Lv 15 / 30 / 42 / 110 (Double → Triway → Fiveway → Phoenix, Scout → Hitman → Ace/Shadow, Spammer, Side, Grinder/Spiker melee, Freezer, Flame, Railgun, Blast Lord, Orbitron…). Some cost gems, some come from quests, chests or the wheel. |

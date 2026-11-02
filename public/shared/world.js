@@ -83,6 +83,7 @@ export class World {
     this.grid = new Grid(12);
     this.tmp = [];
     this.maxBots = opts.botTarget ?? MAX_BOTS;
+    this.walls = mapWalls(this.modeId, this.half);
     this.humans = 0;
     for (let i = 0; i < this.mode.shapes; i++) this.spawnShape(true);
     for (let i = 0; i < this.maxBots; i++) this.addBot();
@@ -160,7 +161,7 @@ export class World {
     for (let tries = 0; tries < 12 && !ok; tries++) {
       x = (rand() * 2 - 1) * h;
       z = (rand() * 2 - 1) * h;
-      ok = !this.anyBaseAt(x, z, 6);
+      ok = !this.anyBaseAt(x, z, 6) && !inWall(this.walls, x, z, 7);
       if (ok && !initial) {
         for (const t of this.tanks.values()) {
           if (t.alive && Math.abs(t.x - x) < 22 && Math.abs(t.z - z) < 22) { ok = false; break; }
@@ -242,6 +243,7 @@ export class World {
     const h = this.half - 15;
     for (let i = 0; i < 14; i++) {
       const x = (rand() * 2 - 1) * h, z = (rand() * 2 - 1) * h;
+      if (inWall(this.walls, x, z, 6)) continue;
       let md = 1e9;
       for (const o of this.tanks.values()) {
         if (o === t || !o.alive) continue;
@@ -528,6 +530,7 @@ export class World {
       if (t.x > lim) { t.x = lim; t.vx = 0; }
       if (t.z < -lim) { t.z = -lim; t.vz = 0; }
       if (t.z > lim) { t.z = lim; t.vz = 0; }
+      resolveWalls(t, t.r, this.walls);
       t.aim = t.input.aim;
       // regen (+ hyper regen after 25s without damage)
       if (t.hp < t.d.maxHp) {
@@ -591,6 +594,10 @@ export class World {
       if (bl.age > bl.life) bl.hp = 0;
       if (Math.abs(bl.x) > this.half || Math.abs(bl.z) > this.half) bl.hp = 0;
       if (this.mode.teams && bl.k !== 'orbit' && this.enemyBaseAt(bl.x, bl.z, bl.team)) bl.hp = 0;
+      if (bl.k !== 'orbit' && bl.hp > 0 && inWall(this.walls, bl.x, bl.z, bl.r * 0.6)) {
+        bl.hp = 0;
+        if (bl.k !== 'flame') this.fx.push({ tick: this.tick, d: [FX.HIT, r1(bl.x), r1(bl.z), r2(bl.r)] });
+      }
     }
 
     // shapes are anchored: they never move or spin
@@ -883,6 +890,13 @@ export class World {
       const ahead = this.enemyBaseAt(t.x + mx * 14, t.z + mz * 14, t.team);
       if (ahead) { mx = -mx; mz = -mz; }
     }
+    // walls: if the way ahead is blocked, slide along the wall toward the freer side
+    if ((mx || mz) && inWall(this.walls, t.x + mx * 9, t.z + mz * 9, t.r)) {
+      const lx = -mz, lz = mx;
+      const leftFree = !inWall(this.walls, t.x + lx * 9, t.z + lz * 9, t.r);
+      const s = leftFree ? 1 : -1;
+      mx = lx * s; mz = lz * s;
+    }
     const m = Math.hypot(mx, mz);
     if (m > 1) { mx /= m; mz /= m; }
     b.mx = mx; b.mz = mz;
@@ -961,7 +975,54 @@ export class World {
 }
 
 // Shared movement integrator used by client-side prediction (mirrors World.step).
-export function predictMove(p, mx, mz, speed, half, r, dt) {
+// ------------------------------------------------------------------ arena walls
+// Deterministic cover layout per map: L-shaped walls in each quadrant + bars on each axis.
+// Kept clear of the centre "nest" and of team bases. Rects are [x0, z0, x1, z1].
+export function mapWalls(modeId, half) {
+  const T = 5; // thickness
+  const walls = [];
+  const q = half * 0.42, L = half * 0.2;
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const cx = sx * q, cz = sz * q;
+    // L corner facing the centre
+    walls.push(norm(cx, cz, cx + sx * L, cz + T * sz));
+    walls.push(norm(cx, cz, cx + T * sx, cz + sz * L));
+  }
+  const m = half * 0.7, B = half * 0.13;
+  walls.push(norm(-B, m, B, m + T), norm(-B, -m - T, B, -m));
+  if (modeId === 'ffa') walls.push(norm(m, -B, m + T, B), norm(-m - T, -B, -m, B));
+  else walls.push(norm(m * 0.86, -B, m * 0.86 + T, B), norm(-m * 0.86 - T, -B, -m * 0.86, B));
+  return walls;
+  function norm(a, b, c, d) { return [Math.min(a, c), Math.min(b, d), Math.max(a, c), Math.max(b, d)]; }
+}
+
+export function inWall(walls, x, z, pad = 0) {
+  for (const w of walls) if (x > w[0] - pad && x < w[2] + pad && z > w[1] - pad && z < w[3] + pad) return w;
+  return null;
+}
+
+// push a circle (p.x, p.z, radius r) out of every wall; kills velocity into the wall
+export function resolveWalls(p, r, walls) {
+  for (const w of walls) {
+    const cx = Math.max(w[0], Math.min(p.x, w[2])), cz = Math.max(w[1], Math.min(p.z, w[3]));
+    let dx = p.x - cx, dz = p.z - cz;
+    const d2 = dx * dx + dz * dz;
+    if (d2 >= r * r) continue;
+    if (d2 < 1e-6) { // centre inside the box: push out along the shallowest side
+      const opts = [[p.x - w[0], -1, 0], [w[2] - p.x, 1, 0], [p.z - w[1], 0, -1], [w[3] - p.z, 0, 1]].sort((a, b) => a[0] - b[0]);
+      const [depth, nx, nz] = opts[0];
+      p.x += nx * (depth + r); p.z += nz * (depth + r);
+      continue;
+    }
+    const d = Math.sqrt(d2);
+    dx /= d; dz /= d;
+    p.x = cx + dx * r; p.z = cz + dz * r;
+    const vn = p.vx * dx + p.vz * dz;
+    if (vn < 0) { p.vx -= vn * dx; p.vz -= vn * dz; }
+  }
+}
+
+export function predictMove(p, mx, mz, speed, half, r, dt, walls) {
   const k = Math.min(1, MOVE_ACCEL * dt);
   p.vx += (mx * speed - p.vx) * k;
   p.vz += (mz * speed - p.vz) * k;
@@ -972,4 +1033,5 @@ export function predictMove(p, mx, mz, speed, half, r, dt) {
   if (p.x > lim) { p.x = lim; p.vx = 0; }
   if (p.z < -lim) { p.z = -lim; p.vz = 0; }
   if (p.z > lim) { p.z = lim; p.vz = 0; }
+  if (walls) resolveWalls(p, r, walls);
 }

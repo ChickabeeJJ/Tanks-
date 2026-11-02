@@ -51,7 +51,7 @@ export function createHUD(G) {
     <div class="rbtn wbtn" id="xpad" title="Free XP (every 3 minutes)"><span class="lbl v">+0</span>${ic('star', 30)}</div>
   </div>
   <div id="bottomleft">
-    <div class="rbtn wbtn orange arena-only" id="b-leave" title="Return to lobby">${ic('door', 26)}<span class="lbl lv">Lobby</span></div>
+    <div class="rbtn wbtn arena-only" id="b-leave" title="Return to lobby">${ic('door', 26)}<span class="lbl lv">Lobby</span></div>
   </div>
   <div id="bottomright">
     <div class="rbtn tog" id="t-fire" title="Auto fire (F)">${ic('burst', 30)}<span class="key l">F</span></div>
@@ -134,7 +134,6 @@ export function createHUD(G) {
     setCombat(sec) {
       const c = sec > 0;
       els.leave.classList.toggle('red', c);
-      els.leave.classList.toggle('orange', !c);
       els.leaveTxt.textContent = c ? `Combat ${Math.ceil(sec)}s` : 'Lobby';
     },
 

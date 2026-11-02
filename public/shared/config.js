@@ -14,9 +14,9 @@ export const TEAM_COLORS = {
 export const TEAM_NAMES = { 1: 'Blue', 2: 'Red', 3: 'Green', 4: 'Purple' };
 
 export const MODES = {
-  ffa: { id: 'ffa', name: 'Battle', half: 150, shapes: 280, maxHumans: 7, teams: 0, desc: 'Free for all' },
-  teams: { id: 'teams', name: 'Red VS Blue', half: 160, shapes: 290, maxHumans: 7, teams: 2, desc: '2 teams' },
-  four: { id: 'four', name: '4 Teams', half: 170, shapes: 320, maxHumans: 7, teams: 4, desc: '4 teams' },
+  ffa: { id: 'ffa', name: 'Battle', half: 195, shapes: 420, maxHumans: 7, teams: 0, desc: 'Free for all' },
+  teams: { id: 'teams', name: 'Red VS Blue', half: 205, shapes: 440, maxHumans: 7, teams: 2, desc: '2 teams' },
+  four: { id: 'four', name: '4 Teams', half: 215, shapes: 470, maxHumans: 7, teams: 4, desc: '4 teams' },
 };
 
 // Shapes (the "farm" food). r = collision radius, dmg = contact damage per tick.

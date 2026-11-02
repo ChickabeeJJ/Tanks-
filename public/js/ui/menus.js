@@ -518,43 +518,51 @@ export function createMenus(G) {
 
   // ------------------------------------------------------------------ chests (skins) + casino opening
   function chestArt(c, size = 150) {
-    // Original chest illustrations: Frost Chest (ice + snow) and Molten Chest (obsidian + lava).
+    // Angular, faceted chest (low-poly look): straight edges, hard shading planes, mitred metal.
     const frost = c.id === 'frozen';
-    const id = c.id;
-    const body = frost ? ['#d9f6ff', '#7fd3f5', '#3a9bd0'] : ['#5b4a5e', '#33263a', '#1c1422'];
-    const plank = frost ? 'rgba(255,255,255,.45)' : 'rgba(255,140,60,.18)';
-    const edge = frost ? '#2a7fb0' : '#120a18';
+    const P = frost
+      ? { top: '#e9f8ff', front: '#9fd6f2', frontD: '#5aa8d6', side: '#3f86b8', lid: '#c7ecff', lidD: '#86c4e6', metal: '#dfe8f2', metalD: '#8a9bb0', gem: ['#bff6ff', '#5fe3ff', '#1fa8d6', '#0d6e9e'], line: '#1e5f8c', acc: '#ffffff' }
+      : { top: '#4a4152', front: '#2c2533', frontD: '#1d1724', side: '#141019', lid: '#3a3142', lidD: '#251e2d', metal: '#c9a24a', metalD: '#7a5a1a', gem: ['#ffd27a', '#ff8a2a', '#e8451c', '#9a1f0a'], line: '#0a070d', acc: '#ff7a1a' };
+    const poly = (pts, fill, extra = '') => `<polygon points="${pts}" fill="${fill}" ${extra}/>`;
+    const L = `stroke="${P.line}" stroke-width="2" stroke-linejoin="miter"`;
     const deco = frost
-      ? `<path d="M30 52c6-14 20-22 50-22s44 8 50 22c-8-4-12 2-17-2s-10 3-15-1-9 3-16-1-10 4-17 0-12 3-17-1-9 4-18 5z" fill="#ffffff"/>
-         ${[38, 52, 66, 94, 108, 122].map((x, i) => `<path d="M${x} 70l3 ${8 + (i % 3) * 4}l3 -${8 + (i % 3) * 4}z" fill="#e8fbff" opacity=".95"/>`).join('')}
-         <path d="M14 128l8-22 6 22zM132 128l7-26 8 26zM122 132l5-14 5 14z" fill="#bfefff" stroke="#5fb8e0" stroke-width="2"/>
-         <circle cx="40" cy="98" r="2.5" fill="#fff"/><circle cx="118" cy="88" r="2" fill="#fff"/><circle cx="104" cy="118" r="1.8" fill="#fff"/>`
-      : `<path d="M34 92l10 8-4 10 12 6M118 86l-8 12 6 8-10 10M60 120l8-6 10 6" fill="none" stroke="#ff7a1a" stroke-width="3.5" stroke-linecap="round" filter="url(#glow-${id})"/>
-         <path d="M40 62l8 6M112 58l-6 8M70 48l4 8" stroke="#ffb347" stroke-width="3" stroke-linecap="round" filter="url(#glow-${id})"/>
-         ${[0, 1, 2, 3, 4].map((i) => `<circle class="ember e${i}" cx="${30 + i * 25}" cy="${40 - (i % 2) * 10}" r="${2 + (i % 2)}" fill="#ffb347"/>`).join('')}`;
+      ? // crystal shards rising from the lid and flanks
+        [poly('46,30 52,8 58,30', '#e9fbff', L), poly('52,8 58,30 55,30', '#9fe3ff'),
+          poly('100,30 108,2 114,30', '#e9fbff', L), poly('108,2 114,30 111,30', '#9fe3ff'),
+          poly('76,26 81,12 86,26', '#ffffff', L),
+          poly('8,132 16,96 24,132', '#d8f6ff', L), poly('16,96 24,132 20,132', '#8fd8f5'),
+          poly('136,132 146,90 152,132', '#d8f6ff', L), poly('146,90 152,132 149,132', '#8fd8f5')].join('')
+      : // glowing fissures and ember shards
+        `<g filter="url(#lava-${c.id})">
+          <polyline points="30,84 42,96 36,108 50,122" fill="none" stroke="#ff8a2a" stroke-width="3" stroke-linejoin="miter"/>
+          <polyline points="128,82 116,98 124,110 110,124" fill="none" stroke="#ff8a2a" stroke-width="3" stroke-linejoin="miter"/>
+          <polyline points="44,50 56,58 52,66" fill="none" stroke="#ffb347" stroke-width="2.5"/>
+          <polyline points="112,48 102,58 108,64" fill="none" stroke="#ffb347" stroke-width="2.5"/></g>
+        ${[[26, 34], [58, 18], [96, 14], [132, 30]].map(([x, y], i) => `<polygon class="ember e${i}" points="${x},${y} ${x + 4},${y + 6} ${x},${y + 12} ${x - 4},${y + 6}" fill="#ffb347"/>`).join('')}`;
     return `<svg class="chest-art ${frost ? 'frost' : 'molten'}" width="${size}" height="${size}" viewBox="0 0 160 160">
-      <defs>
-        <linearGradient id="cb-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${body[0]}"/><stop offset=".55" stop-color="${body[1]}"/><stop offset="1" stop-color="${body[2]}"/></linearGradient>
-        <linearGradient id="band-${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe680"/><stop offset=".5" stop-color="#ffc21a"/><stop offset="1" stop-color="#d88a00"/></linearGradient>
-        <radialGradient id="aura-${id}" cx=".5" cy=".55" r=".5"><stop offset="0" stop-color="${frost ? '#bfefff' : '#ff8a2a'}" stop-opacity=".75"/><stop offset="1" stop-color="${frost ? '#bfefff' : '#ff3b1c'}" stop-opacity="0"/></radialGradient>
-        <filter id="glow-${id}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-      </defs>
-      <ellipse cx="80" cy="84" rx="74" ry="62" fill="url(#aura-${id})"/>
-      <ellipse cx="80" cy="143" rx="56" ry="8" fill="rgba(0,0,0,.22)"/>
+      <defs><filter id="lava-${c.id}" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="1.8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+      ${poly('22,144 138,144 150,152 10,152', 'rgba(0,0,0,.22)')}
       <g class="lid">
-        <path d="M22 72c0-30 22-46 58-46s58 16 58 46z" fill="url(#cb-${id})" stroke="${edge}" stroke-width="4.5" stroke-linejoin="round"/>
-        <path d="M30 60c4-16 18-26 50-26M34 70h92" stroke="${plank}" stroke-width="3" fill="none" stroke-linecap="round"/>
-        <path d="M68 27h24v45H68z" fill="url(#band-${id})" stroke="#9a5a00" stroke-width="3"/>
-        <path d="M22 66h116v8H22z" fill="url(#band-${id})" stroke="#9a5a00" stroke-width="3"/>
-        <path d="M34 44c10-10 24-14 40-14" stroke="rgba(255,255,255,.55)" stroke-width="4" fill="none" stroke-linecap="round"/>
+        ${poly('34,32 126,32 140,70 20,70', P.lid, L)}
+        ${poly('34,32 126,32 116,22 44,22', P.top, L)}
+        ${poly('126,32 140,70 146,62 132,26 116,22', P.lidD, L)}
+        ${poly('20,70 34,32 40,32 28,70', 'rgba(255,255,255,.35)')}
+        ${poly('70,22 90,22 92,32 94,70 66,70 68,32', P.metal, L)}
+        ${poly('90,22 92,32 94,70 88,70 86,32', P.metalD)}
       </g>
-      <rect x="22" y="72" width="116" height="64" rx="7" fill="url(#cb-${id})" stroke="${edge}" stroke-width="4.5"/>
-      <path d="M26 92h108M26 114h108" stroke="${plank}" stroke-width="3"/>
-      <path d="M22 128h116v8H22z" fill="url(#band-${id})" stroke="#9a5a00" stroke-width="3"/>
-      <path d="M68 72h24v64H68z" fill="url(#band-${id})" stroke="#9a5a00" stroke-width="3"/>
-      ${[[30, 80], [130, 80], [30, 120], [130, 120]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3.2" fill="#ffd84a" stroke="#9a5a00" stroke-width="1.5"/>`).join('')}
-      <path d="M80 80l13 10-5 16H72l-5-16z" fill="${frost ? '#5fe3ff' : '#ff4f2e'}" stroke="#9a5a00" stroke-width="3" stroke-linejoin="round"/>
-      <path d="M80 84l8 6-3 9" stroke="rgba(255,255,255,.7)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      ${poly('20,70 140,70 134,140 26,140', P.front, L)}
+      ${poly('140,70 146,62 140,134 134,140', P.side, L)}
+      ${poly('26,104 134,104 134,140 26,140', P.frontD)}
+      ${poly('20,70 140,70 139,78 21,78', P.metal, L)}
+      ${poly('26,132 134,132 134,140 26,140', P.metal, L)}
+      ${poly('66,70 94,70 92,140 68,140', P.metal, L)}
+      ${poly('88,70 94,70 92,140 86,140', P.metalD)}
+      ${[[20, 70, 1, 1], [140, 70, -1, 1], [26, 140, 1, -1], [134, 140, -1, -1]].map(([x, y, sx, sy]) => poly(`${x},${y} ${x + 16 * sx},${y} ${x},${y + 16 * sy}`, P.metal, L)).join('')}
+      ${poly('80,82 95,94 80,116 65,94', P.gem[1], L)}
+      ${poly('80,82 95,94 80,96', P.gem[0])}
+      ${poly('65,94 80,96 80,116', P.gem[2])}
+      ${poly('95,94 80,96 80,116', P.gem[3])}
+      ${poly('24,76 30,76 28,100 22,100', 'rgba(255,255,255,.28)')}
       ${deco}
     </svg>`;
   }

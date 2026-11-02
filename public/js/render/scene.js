@@ -170,10 +170,10 @@ export class CameraRig {
 }
 
 // ------------------------------------------------------------------ arena
-export function buildArena(half, mode) {
+export function buildArena(half, mode, walls = []) {
   const root = new THREE.Group();
   const tex = gridTexture('#f6f9fd', '#e3ebf4', 4);
-  const size = half * 2 + 500;
+  const size = half * 2 + 16; // floor ends just past the outer walls (floating platform)
   const floorTex = tex.clone();
   floorTex.needsUpdate = true;
   floorTex.repeat.set(size / 16, size / 16);
@@ -181,6 +181,28 @@ export function buildArena(half, mode) {
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   root.add(floor);
+  const slab = new THREE.Mesh(new THREE.BoxGeometry(size, 8, size), new THREE.MeshStandardMaterial({ color: 0x9fb2c6, metalness: 0.55, roughness: 0.35 }));
+  slab.position.y = -4.02;
+  root.add(slab);
+  const rim = new THREE.Mesh(new THREE.BoxGeometry(size + 0.5, 0.6, size + 0.5), new THREE.MeshBasicMaterial({ color: 0x8fe3ff }));
+  rim.position.y = -1.4;
+  root.add(rim);
+
+  // cover walls inside the arena (same layout as the simulation)
+  {
+    const panelM = new THREE.MeshStandardMaterial({ color: 0xf4f8fc, roughness: 0.6, emissive: 0xdfe9f4, emissiveIntensity: 0.25 });
+    const baseM = new THREE.MeshStandardMaterial({ color: 0x8ea4bd, roughness: 0.35, metalness: 0.6 });
+    const capM = new THREE.MeshStandardMaterial({ color: 0xb7c7d9, roughness: 0.3, metalness: 0.55 });
+    const glowM = new THREE.MeshBasicMaterial({ color: 0x8fe3ff });
+    for (const [x0, z0, x1, z1] of walls) {
+      const w = x1 - x0, d = z1 - z0, cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      const add = (geo, mat, y, sh = true) => { const m = new THREE.Mesh(geo, mat); m.position.set(cx, y, cz); m.castShadow = sh; m.receiveShadow = true; root.add(m); };
+      add(new THREE.BoxGeometry(w + 0.6, 1.2, d + 0.6), baseM, 0.6);
+      add(new THREE.BoxGeometry(w, 5.2, d), panelM, 3.2);
+      add(new THREE.BoxGeometry(w + 0.8, 0.7, d + 0.8), capM, 6.1);
+      add(new THREE.BoxGeometry(w + 0.85, 0.22, d + 0.85), glowM, 5.65, false);
+    }
+  }
 
   // pastel inner zone ring (center = richer shapes)
   const zone = new THREE.Mesh(new THREE.RingGeometry(half * 0.34, half * 0.36, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }));
@@ -191,11 +213,11 @@ export function buildArena(half, mode) {
   // walls with string lights
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xf9e9ef, roughness: 0.8 });
   const H = 6, T = 4;
-  const walls = [
+  const outer = [
     [0, -half - T / 2, half * 2 + T * 2, T], [0, half + T / 2, half * 2 + T * 2, T],
     [-half - T / 2, 0, T, half * 2], [half + T / 2, 0, T, half * 2],
   ];
-  for (const [x, z, w, d] of walls) {
+  for (const [x, z, w, d] of outer) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, H, d), wallMat);
     m.position.set(x, H / 2, z);
     m.receiveShadow = true;

@@ -8,6 +8,7 @@ import { createHUD } from './ui/hud.js';
 import { createMenus } from './ui/menus.js';
 import { Arena } from './game.js';
 import { Lobby } from './lobby.js';
+import { Tutorial } from './tutorial.js';
 import { resolveServer, apiBase, localServer } from './net.js';
 import { MODES } from '../shared/config.js';
 import { cleanName, cleanChat } from '../shared/filter.js';
@@ -50,9 +51,11 @@ G.play = async (mode, roomId) => {
   G.menus.close();
   G.state = 'arena';
   G.hud.setMode('arena');
+  Input.touchMode = 'arena';
   G.arena = new Arena(G);
   G.hud.big('Joining...', 1200);
   await G.arena.start(m.id, roomId);
+  if (G.tut) G.tut.enterArena();
 };
 
 G.toLobby = async (skipAd) => {
@@ -60,8 +63,10 @@ G.toLobby = async (skipAd) => {
   G.menus.close();
   G.state = 'lobby';
   G.hud.setMode('lobby');
+  Input.touchMode = 'lobby';
   G.lobby = new Lobby(G);
   G.lobby.start();
+  if (G.tut) G.tut.enterLobby();
   SDK.gameplayStop();
 };
 
@@ -161,6 +166,7 @@ async function boot() {
   });
   G.hud = createHUD(G);
   G.menus = createMenus(G);
+  G.tut = new Tutorial(G);
   let refreshQueued = false;
   profile.on((what) => {
     if (what === 'owned') G.onOwnedChanged();
@@ -184,7 +190,6 @@ async function boot() {
   const mode = SDK.getInviteParam('mode');
   if (room || (SDK.instantMultiplayer && G.api)) G.play(MODES[mode] ? mode : 'ffa', room || undefined);
   else G.toLobby(true);
-  G.hud.chatLine('', 'Welcome! Drive into a portal to play. Shift toggles camera lock, R auto-spins.');
 
   let last = performance.now();
   function frame(now) {
@@ -198,6 +203,7 @@ async function boot() {
     }
     if (G.state === 'arena' && G.arena) G.arena.update(dt);
     else if (G.state === 'lobby' && G.lobby) G.lobby.update(dt);
+    if (G.tut) G.tut.update(dt);
     G.render(dt);
   }
   requestAnimationFrame(frame);
