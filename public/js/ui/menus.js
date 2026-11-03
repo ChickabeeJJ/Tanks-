@@ -93,49 +93,114 @@ export function createMenus(G) {
   const say = (lines, cls = 'green') => { for (const l of [].concat(lines || [])) G.hud.toast(`Received ${l}!`, cls); };
 
   // ------------------------------------------------------------------ store
+  // ------------------------------------------------------------------ store: daily pack, free gems, gem shop
+  const dayHash = () => { let x = 0; for (const c of dayId()) x = (x * 31 + c.charCodeAt(0)) >>> 0; return x; };
+  const untilTomorrow = () => { const n = new Date(); const m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; };
+  function gemPile(n) {
+    // 1-3 stacked gems as "bigger pack" art
+    const gems = [[0, 0, 1]].concat(n > 1 ? [[-20, 10, 0.8], [20, 10, 0.8]] : []).concat(n > 2 ? [[-34, 24, 0.65], [34, 24, 0.65], [0, 26, 0.75]] : []);
+    return `<div class="gpile">${gems.map(([x, y, k]) => `<span style="transform:translate(${x}px,${y}px) scale(${k})">${ic('gem', 54)}</span>`).join('')}</div>`;
+  }
   function store(tab) {
     modal({
-      title: 'Store', icon: 'basket', tabs: [{ id: 'pack', label: 'Pack', icon: 'gift' }, { id: 'gems', label: 'Gems', icon: 'gem' }], tab: tab || 'pack',
-      tick: (st) => st.redraw(),
+      title: 'Store', icon: 'basket', wide: true,
+      tabs: [{ id: 'pack', label: 'Daily', icon: 'gift' }, { id: 'gems', label: 'Gems', icon: 'gem' }, { id: 'shop', label: 'Shop', icon: 'basket' }], tab: tab || 'pack',
+      tick: (st) => { if (st.tab !== 'shop') st.redraw(); },
       render(b, st) {
         const d = profile.d;
+        b.appendChild(h(`<div class="sto-bal"><span>Your gems</span>${ic('gem', 24)}<b class="lbl">${fmtFull(d.gems)}</b></div>`));
         if (st.tab === 'pack') {
           const claimed = d.store.starterDay === dayId();
           const xp = profile.xpLv(0.8);
-          b.appendChild(h(`<div class="col">
-            <div class="box center" style="background:linear-gradient(#7ff58f,#36c95a);color:#fff">
-              <div class="big stroke">Starterpack</div>
-              <div class="row center" style="gap:40px;margin:8px 0"><div class="stroke"><div class="big">XP</div>+${fmtFull(xp)}</div><div class="stroke"><div class="big">Gems</div>+1,500</div></div>
-              <button class="btn yellow stroke" ${claimed ? 'disabled' : ''}>${claimed ? 'Come back tomorrow' : 'Claim FREE'}</button>
+          const card = h(`<div class="sto-pack ${claimed ? 'claimed' : ''}">
+            <div class="sp-rays"></div>
+            <div class="sp-ribbon lbl">FREE DAILY</div>
+            <div class="sp-title lbl">Starter Pack</div>
+            <div class="sp-items">
+              <div class="sp-item xp">${ic('star', 62)}<span class="sp-amt lbl">+${fmtFull(xp)}</span><span class="sp-lbl">XP</span></div>
+              <div class="sp-plus lbl">+</div>
+              <div class="sp-item gem">${ic('gem', 62)}<span class="sp-amt lbl">+1,500</span><span class="sp-lbl">Gems</span></div>
             </div>
-            <div class="muted center">Free daily pack. Come back every day!</div></div>`));
-          b.querySelector('button').addEventListener('click', async () => {
-            if (d.store.starterDay === dayId()) return;
-            {
-              d.store.starterDay = dayId();
-              say(profile.grant({ xp, gems: 1500 }));
-              Audio.reward();
-              st.redraw();
-            }
+            <button class="btn ${claimed ? 'gray' : 'yellow glow'} sp-claim">${claimed ? `${ic('clock', 22)} ${timeLeft(untilTomorrow())}` : 'Claim FREE'}</button>
+          </div>`);
+          b.appendChild(card);
+          b.appendChild(h('<div class="muted center sto-note">A new pack every day. Come back tomorrow!</div>'));
+          card.querySelector('.sp-claim').addEventListener('click', () => {
+            if (d.store.starterDay === dayId()) { Audio.error(); return; }
+            d.store.starterDay = dayId();
+            flyRewards(card.querySelector('.sp-item.gem'), 'gem', '#gems', 8);
+            flyRewards(card.querySelector('.sp-item.xp'), 'star', '#xpbar', 8);
+            say(profile.grant({ xp, gems: 1500 }));
+            Audio.reward();
+            st.redraw();
           });
-        } else {
-          const g = h('<div class="col"></div>');
+        } else if (st.tab === 'gems') {
+          const g = h('<div class="sto-gems"></div>');
           STORE_GEMS.forEach((p, i) => {
             const left = d.store.gemsAt[i] - Date.now();
-            const row = h(`<div class="box row between"><div class="row">${ic('gem', 40)}<div><div class="big">${p.name}</div><div class="muted">+${fmtFull(p.gems)} Gems</div></div></div>
-              <button class="btn green stroke" ${left > 0 ? 'disabled' : ''}>${left > 0 ? timeLeft(left) : 'Claim FREE'}</button></div>`);
-            row.querySelector('button').addEventListener('click', async () => {
-              if (d.store.gemsAt[i] > Date.now()) return;
-              {
-                d.store.gemsAt[i] = Date.now() + p.cd * 1000;
-                say(profile.grant({ gems: p.gems }));
-                Audio.reward();
-                st.redraw();
-              }
+            const pct = left > 0 ? 100 - (left / (p.cd * 1000)) * 100 : 100;
+            const c = h(`<div class="sg-card t${i} ${left > 0 ? 'cool' : 'ready'}">
+              ${i === 2 ? '<div class="sg-best lbl">BEST</div>' : ''}
+              <div class="sg-name lbl">${p.name}</div>
+              ${gemPile(i + 1)}
+              <div class="sg-amt lbl">+${fmtFull(p.gems)}</div>
+              <div class="sg-cd"><i style="width:${pct}%"></i></div>
+              <button class="btn ${left > 0 ? 'gray' : 'green'} sg-btn">${left > 0 ? timeLeft(left) : 'Claim FREE'}</button></div>`);
+            c.querySelector('.sg-btn').addEventListener('click', () => {
+              if (d.store.gemsAt[i] > Date.now()) { Audio.error(); return; }
+              d.store.gemsAt[i] = Date.now() + p.cd * 1000;
+              flyRewards(c, 'gem', '#gems', 6 + i * 3);
+              say(profile.grant({ gems: p.gems }));
+              Audio.reward();
+              st.redraw();
             });
-            g.appendChild(row);
+            g.appendChild(c);
           });
           b.appendChild(g);
+          b.appendChild(h('<div class="muted center sto-note">Free gems refill over time - check back often!</div>'));
+        } else {
+          // Gem Shop: today's featured deals (25% off) + always-available items
+          const H = dayHash();
+          const skinPool = SKINS.filter((x) => x.price > 0 && !profile.ownsSkin(x.id));
+          const tankPool = Object.values(TANKS).filter((t) => t.unlock.type === 'gems' && !profile.ownsTank(t.id));
+          const fSkin = skinPool.length ? skinPool[H % skinPool.length] : null;
+          const fTank = tankPool.length ? tankPool[(H >>> 3) % tankPool.length] : null;
+          const off = (p) => Math.round((p * 0.75) / 100) * 100;
+          const items = [];
+          if (fTank) items.push({ id: 'ft', feat: true, art: `<img src="${tankIcon(fTank.id, 96)}" alt="">`, name: fTank.name, sub: `${fTank.cls} tank · Lv ${fTank.level}+`, was: fTank.unlock.price, price: off(fTank.unlock.price), buy: () => { profile.giveTank(fTank.id); G.onOwnedChanged(); return `${fTank.name} unlocked!`; } });
+          if (fSkin) items.push({ id: 'fs', feat: true, art: `<img src="${skinPreview(fSkin.id, 96)}" alt="">`, name: fSkin.name, sub: 'Skin', was: fSkin.price, price: off(fSkin.price), buy: () => { profile.giveSkin(fSkin.id); return `${fSkin.name} skin unlocked!`; } });
+          const xpS = profile.xpLv(0.5), xpL = profile.xpLv(2);
+          items.push({ id: 'xs', art: `<div class="si-art xp">${ic('star', 64)}</div>`, name: 'XP Pack', sub: `+${fmtFull(xpS)} XP`, price: 2000, buy: () => { profile.addXp(xpS); return `+${fmtFull(xpS)} XP`; }, fly: ['star', '#xpbar'] });
+          items.push({ id: 'xl', art: `<div class="si-art xp big">${ic('star', 70)}${ic('star', 40)}</div>`, name: 'Mega XP Pack', sub: `+${fmtFull(xpL)} XP`, price: 6500, buy: () => { profile.addXp(xpL); return `+${fmtFull(xpL)} XP`; }, fly: ['star', '#xpbar'] });
+          items.push({ id: 'sp', art: `<div class="si-art wheel">${ic('wheel', 64)}</div>`, name: 'Wheel Spin', sub: '+1 spin', price: 3000, buy: () => { profile.d.wheel.spins++; profile.emit('wheel'); return '+1 Wheel Spin'; } });
+          const sec = (title, cls, list) => {
+            if (!list.length) return;
+            b.appendChild(h(`<div class="sto-sec lbl">${title}${cls === 'feat' ? `<span class="sto-reset">${ic('clock', 16)} New deals in ${timeLeft(untilTomorrow())}</span>` : ''}</div>`));
+            const grid = h(`<div class="sto-grid ${cls}"></div>`);
+            for (const it of list) {
+              const afford = d.gems >= it.price;
+              const c = h(`<div class="si ${it.feat ? 'feat' : ''}">
+                ${it.feat ? '<div class="si-off lbl">-25%</div>' : ''}
+                <div class="si-img">${it.art}</div>
+                <div class="si-name lbl">${it.name}</div><div class="si-sub">${it.sub}</div>
+                <button class="btn ${afford ? 'green' : 'gray'} si-buy">${it.was ? `<s class="was">${fmt(it.was)}</s> ` : ''}${ic('gem', 20)} ${fmt(it.price)}</button></div>`);
+              c.querySelector('.si-buy').addEventListener('click', () => {
+                G.menus.open('confirm', `Buy <b>${it.name}</b> for ${ic('gem', 18)} ${fmtFull(it.price)}?`, () => {
+                  if (!profile.spend(it.price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); store('shop'); return; }
+                  const msg = it.buy();
+                  profile.save();
+                  G.hud.toast(msg, 'gold');
+                  Audio.reward();
+                  store('shop');
+                  if (it.fly) setTimeout(() => flyRewards(document.querySelector('.sto-bal') || document.body, it.fly[0], it.fly[1], 8), 50);
+                }, () => store('shop'));
+              });
+              grid.appendChild(c);
+            }
+            b.appendChild(grid);
+          };
+          sec("Today's Deals", 'feat', items.filter((x) => x.feat));
+          sec('Boosts', 'std', items.filter((x) => !x.feat));
         }
       },
     });
@@ -204,6 +269,54 @@ export function createMenus(G) {
     });
   }
 
+  // ------------------------------------------------------------------ Snow Event (milestone track)
+  function renderEvent(b, st) {
+    const list = QUESTS.event;
+    const total = list[list.length - 1].reqs[0].n;
+    const have = Math.min(total, profile.questValue('e.shapes'));
+    const end = (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth() + 1, 1) - n; })();
+    const grand = list[list.length - 1];
+    const flakes = Array.from({ length: 14 }, (_, i) => `<i style="left:${(i * 71) % 100}%;animation-delay:${-(i * 0.7) % 6}s;animation-duration:${5 + (i % 4)}s;font-size:${10 + (i % 3) * 5}px">${ic('snow', 14 + (i % 3) * 6)}</i>`).join('');
+    const ownsFrost = profile.ownsSkin('frost');
+    const root = h(`<div class="ev">
+      <div class="ev-hero">
+        <div class="ev-flakes">${flakes}</div>
+        <div class="ev-left">
+          <div class="ev-tag lbl">${ic('snow', 20)} LIMITED EVENT</div>
+          <div class="ev-title lbl">Snow Event</div>
+          <div class="ev-sub">Destroy shapes in any battle to climb the track and win the exclusive <b>Frost</b> skin!</div>
+          <div class="ev-time">${ic('clock', 18)} Ends in ${Math.floor(end / 864e5)}d ${Math.floor((end % 864e5) / 36e5)}h</div>
+        </div>
+        <div class="ev-prize ${ownsFrost ? 'owned' : ''}"><div class="ev-glow"></div><img src="${skinPreview('frost', 128)}" alt=""><span class="lbl">${ownsFrost ? 'Owned!' : 'Grand Prize'}</span></div>
+      </div>
+      <div class="ev-trackwrap"><div class="ev-track"><i style="width:${(have / total) * 100}%"></i></div><div class="ev-count lbl">${fmtFull(have)} / ${fmtFull(total)} shapes</div></div>
+      <div class="ev-steps"></div></div>`);
+    const steps = root.querySelector('.ev-steps');
+    const track = root.querySelector('.ev-trackwrap');
+    list.forEach((q) => {
+      const need = q.reqs[0].n;
+      const state = profile.questState('event', q);
+      const r = q.reward;
+      const art = r.skin ? `<img src="${skinPreview(r.skin, 64)}" alt="">` : r.gems ? ic('gem', 44) : ic('star', 44);
+      const amt = r.skin ? 'Frost Skin' : r.gems ? `+${fmtFull(r.gems)}` : `+${fmtFull(profile.xpLv(r.xpLv))} XP`;
+      // milestone marker on the track
+      track.appendChild(h(`<div class="ev-mark ${have >= need ? 'hit' : ''}" style="left:${(need / total) * 100}%"><span>${need}</span></div>`));
+      const c = h(`<div class="ev-step ${state} ${q === grand ? 'grand' : ''}">
+        <div class="es-art">${art}</div>
+        <div class="es-name lbl">${q.name}</div>
+        <div class="es-amt">${amt}</div>
+        <div class="es-need">${fmtFull(need)} shapes</div>
+        <button class="btn ${state === 'ready' ? 'green glow' : 'gray'} es-btn">${state === 'claimed' ? ic('check', 22) : state === 'ready' ? 'Claim' : `${Math.min(100, Math.floor((have / need) * 100))}%`}</button></div>`);
+      c.querySelector('.es-btn').addEventListener('click', () => {
+        const out = profile.claimQuest('event', q);
+        if (out) { flyRewards(c, r.gems ? 'gem' : 'star', r.gems ? '#gems' : '#xpbar', 8); say(out); Audio.reward(); if (r.skin) SDK.happytime(); st.redraw(); }
+        else if (state !== 'claimed') { Audio.error(); G.hud.toast(`Destroy ${fmtFull(need - have)} more shapes!`, 'red'); }
+      });
+      steps.appendChild(c);
+    });
+    b.appendChild(root);
+  }
+
   // ------------------------------------------------------------------ quests
   function quests(tab) {
     modal({
@@ -212,6 +325,7 @@ export function createMenus(G) {
       tab,
       render(b, st) {
         const cat = st.tab;
+        if (cat === 'event') { renderEvent(b, st); return; }
         if (cat === 'daily') b.appendChild(h(`<div class="center big" style="margin-bottom:6px">${ic('clock', 20)} ${timeLeft(untilMidnight())}</div>`));
         for (const q of QUESTS[cat]) {
           const state = profile.questState(cat, q);
@@ -359,7 +473,11 @@ export function createMenus(G) {
         const holder = h('<div style="position:relative;flex:1;display:flex;min-width:0;overflow:hidden"></div>');
         pane.replaceWith(holder);
         holder.appendChild(pane);
-        holder.append(lvLayer, infoBox, ex);
+        holder.append(lvLayer, ex);
+        // the info card sits OUTSIDE the menu box (below it, centred) so it never covers the tree
+        st.el.querySelectorAll('.ix-info').forEach((x) => x.remove());
+        infoBox.classList.add('out');
+        st.el.appendChild(infoBox);
         pane.style.flex = '1';
         pane.style.minWidth = '0';
         ex.onclick = () => { full = !full; Audio.click(); st.redraw(); };
@@ -522,9 +640,10 @@ export function createMenus(G) {
       const icon = sg.tank
         ? `<image href="${tankIcon(sg.tank)}" x="${ix - 26}" y="${iy - 26}" width="52" height="52" transform="rotate(${mid} ${ix} ${iy})"/>`
         : `<g transform="rotate(${mid} ${ix} ${iy})">${ic(sg.gems ? 'gem' : 'star', 40).replace('<svg ', `<svg x="${ix - 20}" y="${iy - 20}" `)}</g>`;
-      const [tx, ty] = pt(R * 0.43, mid);
-      deco += icon + `<text x="${tx}" y="${ty}" transform="rotate(${mid} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle"
-        font-family="Fredoka, sans-serif" font-weight="700" font-size="${sg.tank ? 15 : 18}" fill="#fff" stroke="${shade(sg.color, 0.45)}" stroke-width="4" paint-order="stroke">${sg.tank ? '' : '+'}${segValue(sg)}</text>`;
+      // label runs along the radius (outward), so it never spills into the neighbouring slices
+      const [tx, ty] = pt(R * 0.45, mid);
+      deco += icon + `<text x="${tx}" y="${ty}" transform="rotate(${mid - 90} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle"
+        font-family="Fredoka, sans-serif" font-weight="700" font-size="${sg.tank ? 13 : 16}" ${sg.tank ? 'textLength="58" lengthAdjust="spacingAndGlyphs"' : ''} fill="#fff" stroke="${shade(sg.color, 0.45)}" stroke-width="4" paint-order="stroke">${sg.tank ? '' : '+'}${segValue(sg)}</text>`;
     });
     let bulbs = '';
     for (let k = 0; k < 24; k++) { const [bx, by] = pt(R + 8, k * 15); bulbs += `<circle class="bulb ${k % 2 ? 'b2' : ''}" cx="${bx}" cy="${by}" r="4.2"/>`; }
@@ -814,37 +933,70 @@ export function createMenus(G) {
     }
   }
 
-  // ------------------------------------------------------------------ tank shop
+  // ------------------------------------------------------------------ tank shop (spend gems on tanks)
+  const CLS_COL = { Shooter: '#2f9dff', Sniper: '#8f5cff', Spammer: '#ff8a1c', Melee: '#f0464f', Flame: '#ff5a1f', Special: '#1fbfa6' };
+  // rough 0..1 ratings so tanks can be compared at a glance
+  function tankRatings(d) {
+    const fire = d.barrels.reduce((a, x) => a + (x.dmg * x.pellets) / x.rel, 0) + (d.body.spikes ? d.body.bodyDmg * 0.9 : 0);
+    const range = d.barrels.length ? Math.max(...d.barrels.map((x) => x.spd * x.life)) * d.fov : 0.4;
+    return { Firepower: Math.min(1, fire / 4.5), Health: Math.min(1, d.body.hp / 2.2), Speed: Math.min(1, d.body.speed / 1.35), Range: Math.min(1, range / 2.2) };
+  }
   function tankShop() {
     const items = TANK_LIST.filter((d) => d.unlock.type === 'gems').sort((a, b) => a.unlock.price - b.unlock.price);
     let sel = items.find((d) => !profile.ownsTank(d.id)) || items[0];
+    let filter = 'All';
+    const classes = ['All', ...new Set(items.map((d) => d.cls))];
     modal({
       title: 'Tank Shop', icon: 'shield', wide: true,
       render(b, st) {
+        const d0 = profile.d;
         const owned = profile.ownsTank(sel.id);
-        const wrap = h(`<div class="row" style="align-items:stretch;gap:12px">
-          <div class="box col center" style="width:200px;align-items:center"><div class="big">${sel.name}</div><img src="${tankIcon(sel.id, 128)}" style="width:130px">
-            <div class="muted">Lv ${sel.level}+ · ${sel.cls}</div>
-            <button class="btn ${owned ? 'gray' : 'green'} stroke" id="ts-buy" ${owned ? 'disabled' : ''}>${owned ? 'Owned' : `${ic('gem', 20)} ${fmt(sel.unlock.price)}`}</button>
-            <button class="btn yellow stroke" id="ts-index">${ic('search', 20)} Index</button></div>
-          <div class="grid" style="flex:1;max-height:360px;overflow:auto"></div></div>`);
-        const g = wrap.querySelector('.grid');
-        for (const d of items) {
-          const c = h(`<div class="card ${d === sel ? 'sel' : ''}"><img src="${tankIcon(d.id, 64)}"><div>${d.name}</div>${profile.ownsTank(d.id) ? '<div class="owned">Owned</div>' : `<div class="price">${ic('gem', 20)} ${fmt(d.unlock.price)}</div>`}</div>`);
+        const afford = d0.gems >= sel.unlock.price;
+        const col = CLS_COL[sel.cls] || '#2f9dff';
+        const R = tankRatings(sel);
+        const wrap = h(`<div class="tsh">
+          <div class="tsh-hero" style="--cc:${col}">
+            <div class="tsh-rays"></div>
+            <div class="tsh-cls lbl">${sel.cls}</div>
+            <img class="tsh-img" src="${tankIcon(sel.id, 160)}" alt="">
+            <div class="tsh-pod"></div>
+            <div class="tsh-name lbl">${sel.name}</div>
+            <div class="tsh-lv">Unlocks at Level ${sel.level} · ${pathTo(sel.id).slice(-2, -1).map((x) => 'from ' + TANKS[x].name).join('')}</div>
+            <div class="tsh-stats">${Object.entries(R).map(([k, v]) => `<div class="tsr"><span>${k}</span><div><i style="width:${Math.max(6, v * 100)}%"></i></div></div>`).join('')}</div>
+            <button class="btn ${owned ? 'gray' : afford ? 'green glow' : 'gray'} tsh-buy" ${owned ? 'disabled' : ''}>${owned ? `${ic('check', 22)} Owned` : `${ic('gem', 22)} ${fmtFull(sel.unlock.price)}`}</button>
+            <button class="btn yellow tsh-ix">${ic('search', 18)} View in Index</button>
+          </div>
+          <div class="tsh-right">
+            <div class="tsh-top"><div class="tsh-filters">${classes.map((c) => `<button class="tf ${c === filter ? 'on' : ''}" data-c="${c}" style="--cc:${CLS_COL[c] || '#16335e'}">${c}</button>`).join('')}</div>
+              <div class="sto-bal">${ic('gem', 22)}<b class="lbl">${fmtFull(d0.gems)}</b></div></div>
+            <div class="tsh-grid"></div></div></div>`);
+        const g = wrap.querySelector('.tsh-grid');
+        for (const d of items.filter((x) => filter === 'All' || x.cls === filter)) {
+          const own = profile.ownsTank(d.id);
+          const c = h(`<div class="tcd ${d === sel ? 'sel' : ''} ${own ? 'own' : ''}" style="--cc:${CLS_COL[d.cls] || '#2f9dff'}">
+            <span class="tcd-cls">${d.cls}</span>
+            <img src="${tankIcon(d.id, 80)}" alt="">
+            <div class="tcd-name lbl">${d.name}</div>
+            ${own ? `<div class="tcd-own">${ic('check', 16)} Owned</div>` : `<div class="tcd-price ${d0.gems >= d.unlock.price ? '' : 'poor'}">${ic('gem', 16)} ${fmt(d.unlock.price)}</div>`}
+            ${profile.level < d.level ? `<span class="tcd-lv">Lv ${d.level}</span>` : ''}</div>`);
           c.addEventListener('click', () => { sel = d; Audio.click(); st.redraw(); });
           g.appendChild(c);
         }
-        wrap.querySelector('#ts-index').onclick = () => index(sel.id);
-        wrap.querySelector('#ts-buy').onclick = () => {
+        wrap.querySelectorAll('.tf').forEach((x) => x.addEventListener('click', () => { filter = x.dataset.c; Audio.click(); st.redraw(); }));
+        wrap.querySelector('.tsh-ix').onclick = () => index(sel.id);
+        wrap.querySelector('.tsh-buy').onclick = () => {
           if (profile.ownsTank(sel.id)) return;
           if (!profile.spend(sel.unlock.price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); return; }
           profile.giveTank(sel.id);
           Audio.reward();
+          SDK.happytime();
           G.hud.toast(`Bought ${sel.name}!`, 'gold');
           G.onOwnedChanged();
           st.redraw();
         };
         b.appendChild(wrap);
+        const s0 = g.querySelector('.tcd.sel');
+        if (s0) s0.scrollIntoView({ block: 'nearest' });
       },
     });
   }

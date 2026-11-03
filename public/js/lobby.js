@@ -144,7 +144,7 @@ export class Lobby {
     this.G = G;
     this.inside = {};
     this.pos = { x: 0, z: 2, vx: 0, vz: 0 };
-    this.aim = -Math.PI / 2;
+    this.aim = Math.PI / 2; // facing the battle portals
     this.ray = new THREE.Raycaster();
     this.plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.9);
     this.v = new THREE.Vector3();
@@ -156,7 +156,8 @@ export class Lobby {
     this.env = buildLobby(profile.d.skin);
     G.scene.add(this.env.root);
     this.makeTank();
-    G.camRig.yaw = 0;
+    G.camRig.yaw = Math.PI; // camera looks toward the portals (not the chest)
+    this.aim = Math.PI / 2;
     G.camRig.snap(this.pos.x, this.pos.z);
   }
 

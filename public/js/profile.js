@@ -72,8 +72,12 @@ export const QUESTS = {
     { id: 'u_alpha', name: 'Alpha Hunter', reqs: [{ k: 'alphas', n: 5, label: 'Destroy 5 Alpha shapes' }], reward: { gems: 10000 } },
     { id: 'u_lv150', name: 'Veteran', reqs: [{ k: 'level', n: 150, label: 'Reach Level 150' }], reward: { gems: 25000 } },
   ],
+  // Snow Event: a milestone track (all count the same event shape total), grand prize = Frost skin
   event: [
-    { id: 'e_frost', name: 'Snow Event', reqs: [{ k: 'e.shapes', n: 1000, label: 'Destroy 1,000 shapes' }], reward: { skin: 'frost' } },
+    { id: 'e_150', name: 'First Flurry', reqs: [{ k: 'e.shapes', n: 150, label: 'Destroy 150 shapes' }], reward: { gems: 1000 } },
+    { id: 'e_400', name: 'Snowfall', reqs: [{ k: 'e.shapes', n: 400, label: 'Destroy 400 shapes' }], reward: { xpLv: 0.6 } },
+    { id: 'e_700', name: 'Blizzard', reqs: [{ k: 'e.shapes', n: 700, label: 'Destroy 700 shapes' }], reward: { gems: 3000 } },
+    { id: 'e_frost', name: 'Frost Champion', reqs: [{ k: 'e.shapes', n: 1000, label: 'Destroy 1,000 shapes' }], reward: { skin: 'frost' } },
   ],
 };
 

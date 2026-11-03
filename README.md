@@ -46,6 +46,10 @@ This basic launch has **no ads**. Things the Roblox game sells for Robux are fre
 - `game.inviteLink`, `showInviteButton`, `getInviteParam('room')` and `isInstantMultiplayer`, so invites land in the same server.
 - Respects `settings.muteAudio` and `settings.disableChat`. Chat is filtered and rate-limited.
 
+## CrazyGames store assets
+
+`store-assets/` holds the 3 covers and 2 preview videos CrazyGames asks for, plus `LISTING.md` (title, description, controls, tags, lobby sizes). Re-render them from gameplay with `node scripts/make-assets.cjs covers|video-landscape|video-portrait [--title "Name"]` while `npm start` is running.
+
 ## Deploying
 
 1. **Server**: deploy the repo to any Node host (Render, Railway, Fly.io, a VPS) or use the `Dockerfile`. It listens on `$PORT` and serves `/ws`, `/api/leaderboard` and `/api/rooms`.
@@ -75,6 +79,9 @@ The server is authoritative. It runs at 30 ticks/s and sends area-of-interest sn
 - Bullets collide with each other and cancel out with a small white puff.
 - Railgun-class tanks fire a long neon beam that pierces shapes, tanks and bullets. Each target is hit once, and the beam loses 20% damage per target.
 - Health bars show a short "damage trail" that drains after each hit.
+- Spiked tanks: the spike tips deal damage too (they reach past the body), and ramming damage scales with the **Damage** stat instead of Body Damage.
+- The spawn shield blocks damage but not attacking. Hurting another tank ends your own shield.
+- **Recover Last:** when you die, your tank and stat points are saved (even across reloads). On your next spawn, one button restores them.
 
 ## Originality
 

@@ -214,7 +214,10 @@ export function derived(tankId, level, stats) {
     maxHp: Math.round((100 + 4 * L + 28 * s[4]) * def.body.hp),
     regen: (0.006 + 0.0045 * s[5]) * def.body.regen,
     speed: 17 * (1 + 0.055 * s[6]) * def.body.speed * (1 - L * 0.003),
-    bodyDps: 40 * (1 + 0.45 * s[7]) * def.body.bodyDmg,
+    // spiked tanks: ramming damage scales with the DAMAGE stat (spikes are their weapon)
+    bodyDps: 40 * (1 + 0.45 * (def.body.spikes ? s[0] : s[7])) * def.body.bodyDmg,
+    // how far the spikes reach past the body (spike tips deal damage too)
+    reach: 2.0 * def.body.size * (def.body.spikes === 3 ? 1.5 : def.body.spikes ? 1.38 : 1),
     bodyRes: 6 * (1 + 0.35 * s[7]) * Math.max(1, def.body.bodyDmg * 0.8),
     dmgMul: 1 + 0.16 * s[0],
     penMul: 1 + 0.4 * s[1],

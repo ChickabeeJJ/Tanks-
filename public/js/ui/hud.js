@@ -30,6 +30,7 @@ export function createHUD(G) {
     <div id="xpgain"></div>
   </div>
   <div id="teamscore" class="hidden"></div>
+  <div class="rbtn wbtn yellow hidden" id="b-recover" title="Restore the tank and stats you had when you died">${ic('reload', 26)}<span class="lbl">Recover Last</span></div>
   <div id="qpanel" class="hidden"></div>
   <div id="epanel" class="hidden"></div>
   <div id="left">
@@ -88,6 +89,7 @@ export function createHUD(G) {
   click('#b-quest', () => G.menus.open('quests'));
   click('#b-rank', () => G.menus.open('rank'));
   click('#xpad', () => G.claimXp());
+  click('#b-recover', () => G.arena && G.arena.recoverLast());
   // free XP cooldown: dimmed button, draining fill and a mm:ss countdown until it is ready again
   setInterval(() => {
     const btn = $('#xpad', root);
@@ -133,7 +135,7 @@ export function createHUD(G) {
       root.querySelectorAll('.lobby-only').forEach((el) => el.classList.toggle('hidden', mode !== 'lobby'));
       if (mode !== 'arena') { this.closeQ(); this.closeE(); }
       this.setCombat(0);
-      if (mode !== 'arena') this.renderTeams(null);
+      if (mode !== 'arena') { this.renderTeams(null); this.setRecover(false); }
     },
 
     setToggles(t) {
@@ -252,6 +254,12 @@ export function createHUD(G) {
     },
 
     renderLB() { /* leaderboards removed */ },
+
+    setRecover(on) {
+      const el = $('#b-recover', root);
+      if (el.classList.contains('hidden') === !on) return;
+      el.classList.toggle('hidden', !on || this.mode !== 'arena');
+    },
 
     // team modes: live team scores under the XP bar
     renderTeams(scores, myTeam, target) {

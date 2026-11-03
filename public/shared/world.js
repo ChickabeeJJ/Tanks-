@@ -423,6 +423,8 @@ export class World {
 
   damageTank(t, amount, byId) {
     if (!t.alive || amount <= 0) return;
+    // a spawn-shielded tank can attack; hurting another tank drops its own shield (no invincible attacks)
+    if (byId != null && byId !== t.id) { const a = this.tanks.get(byId); if (a && a.shieldUntil > this.time) a.shieldUntil = this.time; }
     t.hp -= amount;
     t.lastDmg = this.time;
     if (byId != null && byId !== t.id && this.tanks.has(byId)) {
@@ -524,7 +526,7 @@ export class World {
       } else if (e.kind === 'tank') {
         if (!e.alive || e.id === bl.owner) continue;
         if (this.mode.teams && e.team === bl.team) continue;
-        if (e.shieldUntil > this.time || bl.shielded) continue;
+        if (e.shieldUntil > this.time) continue;
         this.damageTank(e, dmg, bl.owner);
       }
     }
@@ -671,7 +673,7 @@ export class World {
     } else if (e.kind === 'tank') {
       if (!e.alive || e.id === bl.owner || (teams && e.team === bl.team)) return;
       bl.hits.add(e.id);
-      if (e.shieldUntil > now || bl.shielded) return;
+      if (e.shieldUntil > now) return;
       this.damageTank(e, bl.dmg, bl.owner);
       const sp = Math.hypot(bl.vx, bl.vz) || 1;
       e.vx += (bl.vx / sp) * 2.5; e.vz += (bl.vz / sp) * 2.5;
@@ -722,7 +724,7 @@ export class World {
           if (teams && e.team === bl.team) continue;
           const rr = e.r + bl.r;
           if (segDist2(bl.px, bl.pz, bl.x, bl.z, e.x, e.z) > rr * rr) continue;
-          if (e.shieldUntil > now || bl.shielded) { bl.hp = 0; continue; }
+          if (e.shieldUntil > now) { bl.hp = 0; continue; }
           this.damageTank(e, bl.dmg, bl.owner);
           bl.hp -= e.d.bodyRes;
           const sp = Math.hypot(bl.vx, bl.vz) || 1;
@@ -744,45 +746,63 @@ export class World {
       }
     }
 
-    // tanks vs shapes / tanks
+    // tanks vs shapes / tanks (bodies push apart; spike tips reach further and also deal damage)
     for (const t of this.tanks.values()) {
       if (!t.alive) continue;
-      g.query(t.x, t.z, t.r + 7, out);
+      const reach = t.d.reach || t.r;
+      g.query(t.x, t.z, reach + 7, out);
       const tShield = t.shieldUntil > now;
       const lifesteal = getTank(t.tankId).special === 'lifesteal';
       for (let i = 0; i < out.length; i++) {
         const e = out[i];
         if (e === t || e.kind === 'bullet') continue;
         const dx = e.x - t.x, dz = e.z - t.z;
-        const rr = e.r + t.r;
         const d2 = dx * dx + dz * dz;
-        if (d2 >= rr * rr) continue;
-        const d = Math.sqrt(d2) || 0.01;
-        const nx = dx / d, nz = dz / d, pen = rr - d;
         if (e.kind === 'shape') {
           if (e.hp <= 0) continue;
-          t.x -= nx * pen;
-          t.z -= nz * pen;
-          const vn = t.vx * nx + t.vz * nz;
-          if (vn > 0) { t.vx -= nx * vn; t.vz -= nz * vn; }
+          const hitR = e.r + reach;
+          if (d2 >= hitR * hitR) continue;
+          const d = Math.sqrt(d2) || 0.01;
+          const rr = e.r + t.r;
+          const touching = d < rr;
+          if (touching) {
+            const nx = dx / d, nz = dz / d, pen = rr - d;
+            t.x -= nx * pen;
+            t.z -= nz * pen;
+            const vn = t.vx * nx + t.vz * nz;
+            if (vn > 0) { t.vx -= nx * vn; t.vz -= nz * vn; }
+          }
           const dealt = t.d.bodyDps * DT;
           e.hp -= dealt;
           if (lifesteal) t.hp = Math.min(t.d.maxHp, t.hp + dealt * 0.25);
-          if (!tShield) { t.hp -= e.dmg * 3 * DT; t.lastDmg = now; }
+          if (touching && !tShield) { t.hp -= e.dmg * 3 * DT; t.lastDmg = now; }
           if (e.hp <= 0) this.killShape(e, t.id);
           if (t.hp <= 0) { this.killTank(t, null, 'a Shape'); break; }
         } else if (e.kind === 'tank') {
           if (e.id < t.id || !e.alive) continue;
-          t.x -= nx * pen * 0.5; t.z -= nz * pen * 0.5;
-          e.x += nx * pen * 0.5; e.z += nz * pen * 0.5;
-          t.vx -= nx * 3; t.vz -= nz * 3; e.vx += nx * 3; e.vz += nz * 3;
+          const eReach = e.d.reach || e.r;
+          const tHits = d2 < (reach + e.r) ** 2; // t's body/spikes touch e
+          const eHits = d2 < (eReach + t.r) ** 2;
+          if (!tHits && !eHits) continue;
+          const d = Math.sqrt(d2) || 0.01;
+          const rr = e.r + t.r;
+          if (d < rr) {
+            const nx = dx / d, nz = dz / d, pen = rr - d;
+            t.x -= nx * pen * 0.5; t.z -= nz * pen * 0.5;
+            e.x += nx * pen * 0.5; e.z += nz * pen * 0.5;
+            t.vx -= nx * 3; t.vz -= nz * 3; e.vx += nx * 3; e.vz += nz * 3;
+          }
           if (teams && e.team === t.team) continue;
-          if (tShield || e.shieldUntil > now) continue;
           const dt1 = t.d.bodyDps * DT, dt2 = e.d.bodyDps * DT;
-          if (lifesteal) t.hp = Math.min(t.d.maxHp, t.hp + dt1 * 0.25);
-          if (getTank(e.tankId).special === 'lifesteal') e.hp = Math.min(e.d.maxHp, e.hp + dt2 * 0.25);
-          this.damageTank(e, dt1, t.id);
-          this.damageTank(t, dt2, e.id);
+          // shielded tanks take no damage but can still deal it
+          if (tHits && e.shieldUntil <= now) {
+            if (lifesteal) t.hp = Math.min(t.d.maxHp, t.hp + dt1 * 0.25);
+            this.damageTank(e, dt1, t.id);
+          }
+          if (eHits && t.shieldUntil <= now && e.alive) {
+            if (getTank(e.tankId).special === 'lifesteal') e.hp = Math.min(e.d.maxHp, e.hp + dt2 * 0.25);
+            this.damageTank(t, dt2, e.id);
+          }
           if (!t.alive) break;
         }
       }

@@ -2,7 +2,7 @@
 import * as THREE from '../vendor/three.module.min.js';
 import { placeSun } from './render/scene.js';
 import { DT, SHAPE_LIST, SHAPES, MODES, FX, TEAM_COLORS, BULLET_KINDS, TEAM_TARGET } from '../shared/config.js';
-import { getTank, derived, childrenOf, canUse, TANKS } from '../shared/tanks.js';
+import { getTank, derived, childrenOf, canUse, TANKS, pathTo } from '../shared/tanks.js';
 import { predictMove, mapWalls } from '../shared/world.js';
 import { fmt, fmtFull } from '../shared/progression.js';
 import { buildTank, disposeTank, setTankOpacity, shapeGeometry, shapeMaterial, Bar } from './render/models.js';
@@ -230,6 +230,10 @@ export class Arena {
       }
     }
 
+    // 'Recover Last' shows on a fresh spawn while you have a saved build
+    const lb = profile.d.lastBuild;
+    this.G.hud.setRecover(!!(this.alive && lb && !this.recoverUsed && me.tk === 'default' && me.st.every((v) => v === 0)));
+
     profile.setLevelXp(me.lv, me.xp);
     if (me.gp) profile.addGems(me.gp);
     if (me.sd) profile.trackShapes(me.sd);
@@ -265,6 +269,12 @@ export class Arena {
       }
       case 'alpha': profile.d.alphas++; profile.save(); break;
       case 'dead': {
+        // remember the build you died with: 'Recover Last' restores it on your next spawn (survives reloads)
+        if (this.me && (this.me.tk !== 'default' || this.me.st.some((v) => v > 0))) {
+          profile.d.lastBuild = { tk: this.me.tk, st: this.me.st.slice() };
+          profile.save();
+        }
+        this.recoverUsed = false;
         Audio.death();
         SDK.gameplayStop();
         this.deaths++;
@@ -330,6 +340,24 @@ export class Arena {
     if (this.me.sp <= 0) { this.G.hud.toast('No upgrade points!', 'red'); return; }
     this.conn.send({ t: 'stat', i });
     Audio.click();
+  }
+
+  // restore the tank + stat points you had when you last died
+  recoverLast() {
+    const lb = profile.d.lastBuild;
+    if (!lb || !this.alive || !this.me) return;
+    let ok = 0;
+    for (const id of pathTo(lb.tk).slice(1)) {
+      const def = TANKS[id];
+      if (!def || !canUse(def, profile.level, profile.d.owned)) break;
+      this.conn.send({ t: 'up', id });
+      ok++;
+    }
+    for (let i = 0; i < 8; i++) for (let k = 0; k < (lb.st[i] || 0); k++) this.conn.send({ t: 'stat', i });
+    this.recoverUsed = true;
+    this.G.hud.setRecover(false);
+    this.G.hud.toast(ok || lb.tk === 'default' ? 'Last build recovered!' : 'Stats recovered!', 'gold');
+    Audio.upgrade();
   }
 
   sendOwned() { if (this.conn) this.conn.send({ t: 'own', owned: profile.d.owned }); }
