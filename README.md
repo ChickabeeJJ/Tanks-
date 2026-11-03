@@ -1,4 +1,4 @@
-# Tanks
+# TankShot.io
 
 A 3D multiplayer tank arena built for **CrazyGames** (HTML5 + three.js, CrazyGames SDK v3). It recreates the Roblox tank game's loop: a lobby hub, a shape-farming arena, a deep tank upgrade tree, stat points, and Rank, Quests, Gifts, a Wheel, Chests and Shops. Bots fill every match when there aren't enough players.
 

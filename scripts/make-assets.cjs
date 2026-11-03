@@ -2,7 +2,7 @@
 //   node scripts/make-assets.cjs covers            -> store-assets/cover-landscape.png (1920x1080), cover-portrait.png (800x1200), cover-square.png (800x800)
 //   node scripts/make-assets.cjs video-landscape   -> store-assets/preview-landscape.mp4 (1920x1080, 18s)
 //   node scripts/make-assets.cjs video-portrait    -> store-assets/preview-portrait.mp4 (1080x1620, 18s)
-// Options: --url http://localhost:3000/  --title "Tank Rumble" (covers: adds the title logo; without it covers have no text)
+// Options: --url http://localhost:3000/  --title "TankShot.io" (covers: adds the title logo; without it covers have no text)
 // The game server (npm start) must be running. Time is virtualised (page.clock), so the videos are
 // smooth 30 fps no matter how slow the machine renders.
 const { chromium } = require('playwright');
@@ -13,7 +13,7 @@ const { execSync } = require('child_process');
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const MODE = process.argv[2] || 'covers';
 const URL0 = arg('--url', 'http://localhost:3000/');
-const TITLE = arg('--title', 'Tank Rumble');
+const TITLE = arg('--title', 'TankShot.io');
 const OUT = path.join(__dirname, '..', 'store-assets');
 fs.mkdirSync(OUT, { recursive: true });
 

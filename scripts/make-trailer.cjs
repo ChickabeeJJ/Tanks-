@@ -1,7 +1,7 @@
 // Fast-paced store trailer cut from real gameplay (needs Playwright + Chromium + ffmpeg, and `npm start`).
 //   node scripts/make-trailer.cjs landscape   -> store-assets/trailer-landscape.mp4 (1920x1080)
 //   node scripts/make-trailer.cjs portrait    -> store-assets/trailer-portrait.mp4  (1080x1620)
-// Options: --title "Tank Rumble"  --url http://localhost:3000/
+// Options: --title "TankShot.io"  --url http://localhost:3000/
 // Structure: cold open -> title card -> 6 captioned feature clips (~2 s each) -> end card with PLAY NOW.
 // Everything in the page (rendering, the in-browser server, timers, CSS animations) runs on a virtual
 // clock that only moves 1/30 s per captured frame, so the result is a smooth 30 fps however slow the machine is.
@@ -13,7 +13,7 @@ const { execSync } = require('child_process');
 const arg = (k, d) => { const i = process.argv.indexOf(k); return i > 0 ? process.argv[i + 1] : d; };
 const PORTRAIT = process.argv[2] === 'portrait';
 const URL0 = arg('--url', 'http://localhost:3000/');
-const TITLE = arg('--title', 'Tank Rumble');
+const TITLE = arg('--title', 'TankShot.io');
 const OUT = path.join(__dirname, '..', 'store-assets');
 const FPS = 30;
 const W = PORTRAIT ? 720 : 1280, H = PORTRAIT ? 1080 : 720;
@@ -69,16 +69,16 @@ const OVERLAY_CSS = (title) => `
   #tr { position: fixed; inset: 0; z-index: 999; pointer-events: none; font-family: Fredoka, 'Arial Rounded MT Bold', sans-serif; }
   #tr .dim { position: absolute; inset: 0; background: radial-gradient(ellipse at center, rgba(8,16,40,.35), rgba(8,16,40,.78)); opacity: 0; }
   #tr .cap { position: absolute; left: 0; bottom: ${PORTRAIT ? '24%' : '17%'}; opacity: 0; }
-  #tr .cap .b1 { display: inline-block; background: #ffd21f; color: #16233f; font-weight: 700; font-style: italic; text-transform: uppercase;
+  #tr .cap .b1 { display: inline-block; background: #2f9dff; color: #fff; text-shadow: 0 2px 0 #0b4f8f; font-weight: 700; font-style: italic; text-transform: uppercase;
     font-size: ${PORTRAIT ? 44 : 40}px; letter-spacing: 1px; padding: 4px 26px 2px 34px; transform: skewX(-10deg); box-shadow: 0 5px 0 rgba(0,0,0,.25); }
   #tr .cap .b1 span { display: inline-block; transform: skewX(10deg); }
   #tr .cap .b2 { display: inline-block; margin: 8px 0 0 30px; background: #16233f; color: #fff; font-weight: 700; text-transform: uppercase;
     font-size: ${PORTRAIT ? 22 : 19}px; letter-spacing: 2px; padding: 5px 14px; transform: skewX(-10deg); }
   #tr .cap .b2 span { display: inline-block; transform: skewX(10deg); }
   #tr .ttl { position: absolute; left: 0; right: 0; top: ${PORTRAIT ? '34%' : '28%'}; display: flex; flex-direction: column; align-items: center; opacity: 0; }
-  #tr .ttl .t1 { color: #fff; font-weight: 700; font-size: ${PORTRAIT ? 104 : 116}px; line-height: 1; letter-spacing: 3px; text-transform: uppercase;
+  #tr .ttl .t1 { color: #fff; font-weight: 700; font-size: ${PORTRAIT ? 92 : 116}px; line-height: 1; letter-spacing: 3px; text-transform: uppercase;
     text-shadow: 0 6px 0 rgba(0,0,0,.35), 0 0 30px rgba(0,0,0,.25); }
-  #tr .ttl .t2 { margin-top: 10px; background: #ffd21f; color: #16233f; font-weight: 700; font-style: italic; text-transform: uppercase;
+  #tr .ttl .t2 { margin-top: 10px; background: #2f9dff; color: #fff; text-shadow: 0 3px 0 #0b4f8f; font-weight: 700; font-style: italic; text-transform: lowercase;
     font-size: ${PORTRAIT ? 90 : 96}px; line-height: 1; padding: 6px 30px 4px; transform: skewX(-10deg); box-shadow: 0 7px 0 rgba(0,0,0,.3); }
   #tr .ttl .t2 span { display: inline-block; transform: skewX(10deg); }
   #tr .ttl .play { margin-top: 34px; color: #fff; font-weight: 700; font-size: ${PORTRAIT ? 34 : 32}px; letter-spacing: 4px; padding: 8px 26px;
@@ -88,8 +88,10 @@ const OVERLAY_CSS = (title) => `
 
 function overlayHtml(title) {
   const words = title.split(' ');
-  const a = words.length > 1 ? words.slice(0, -1).join(' ') : title;
-  const b = words.length > 1 ? words[words.length - 1] : '';
+  let a = words.length > 1 ? words.slice(0, -1).join(' ') : title;
+  let b = words.length > 1 ? words[words.length - 1] : '';
+  const dot = title.lastIndexOf('.');
+  if (words.length === 1 && dot > 0) { a = title.slice(0, dot); b = title.slice(dot); } // TankShot.io -> TankShot + .io
   return `<div class="dim"></div>
     <div class="cap"><div class="b1"><span class="c1"></span></div><br><div class="b2"><span class="c2"></span></div></div>
     <div class="ttl"><div class="t1">${a}</div>${b ? `<div class="t2"><span>${b}</span></div>` : ''}<div class="play">PLAY NOW</div></div>

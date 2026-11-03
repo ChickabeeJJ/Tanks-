@@ -1,6 +1,6 @@
-# CrazyGames listing: Tank Rumble
+# CrazyGames listing: TankShot.io
 
-Working title used on the covers: **Tank Rumble**. To use a different name, re-render the covers with
+Game name: **TankShot.io**. The covers have no text; to add the title logo, re-render them with
 `node scripts/make-assets.cjs covers --title "Your Name"` (the server must be running: `npm start`).
 
 ## Assets (this folder)
@@ -12,12 +12,15 @@ Working title used on the covers: **Tank Rumble**. To use a different name, re-r
 | `cover-square.png` | 800 x 800 (1:1) | Square cover |
 | `preview-landscape.mp4` | 1920 x 1080, 18 s, H.264, no audio | Landscape preview video |
 | `preview-portrait.mp4` | 1080 x 1620 (2:3), 18 s, H.264, no audio | Portrait preview video |
+| `trailer-landscape.mp4` | 1920 x 1080, ~18 s, fast cuts with captions and title cards | Trailer (landscape) |
+| `trailer-portrait.mp4` | 1080 x 1620, ~18 s | Trailer (portrait) |
 
-All five are rendered from real gameplay by `scripts/make-assets.cjs`.
+All are rendered from real gameplay: covers and previews by `scripts/make-assets.cjs`, trailers by
+`scripts/make-trailer.cjs landscape|portrait`.
 
 ## Basic info
 
-- **Title:** Tank Rumble
+- **Title:** TankShot.io
 - **Genre / category:** Shooting (alternatives: .io, Action)
 - **Tags:** tank, multiplayer, io, 3d, shooter, pvp, upgrade, arena, team, bots
 - **Orientation:** Landscape
@@ -32,7 +35,7 @@ Blast shapes, level up and evolve your tank through 50+ upgrades in fast 3D mult
 
 ## Description
 
-Tank Rumble is a fast, colourful 3D tank arena. Drive into battle, destroy shapes for XP and grow from a
+TankShot.io is a fast, colourful 3D tank arena. Drive into battle, destroy shapes for XP and grow from a
 tiny cannon into a powerful war machine.
 
 Every level gives stat points: boost damage, fire rate, bullet speed, health, regen, speed and more. As you
