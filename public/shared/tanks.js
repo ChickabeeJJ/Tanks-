@@ -49,7 +49,7 @@ T('flame', 'Flame', 'Flame', 1, 15, 'default',
   [b({ kind: 'flame', len: 3.0, w: 1.2, cone: 1.3, rel: 0.1, dmg: 0.22, pen: 3, spd: 0.55, life: 0.45, spread: 0.3, bs: 1.1, recoil: 0.1 })],
   { desc: 'Short range flamethrower.' });
 T('railgun', 'Railgun', 'Sniper', 1, 15, 'default',
-  [b({ kind: 'rail', len: 5.0, w: 1.05, rel: 2.3, dmg: 6.5, pen: 6, spd: 2.5, life: 0.85, bs: 0.75, spread: 0, recoil: 3.5 })],
+  [b({ kind: 'rail', len: 5.0, w: 1.05, rel: 5.8, dmg: 6.5, pen: 6, spd: 2.5, life: 0.85, bs: 0.75, spread: 0, recoil: 3.5 })],
   { fov: 1.25, unlock: { type: 'gems', price: 60000 }, desc: 'Fires a long neon beam that pierces everything in its path.' });
 T('blastlord', 'Bombardier', 'Special', 1, 15, 'default',
   [b({ kind: 'blast', len: 3.2, w: 1.7, rel: 2.0, dmg: 2.0, pen: 2, spd: 0.75, bs: 1.6, recoil: 3 })],
@@ -111,8 +111,8 @@ T('breaker', 'Breaker', 'Special', 2, 30, 'freezer',
 T('doubleflame', 'Double Flame', 'Flame', 2, 30, 'flame',
   [-0.5, 0.5].map((ox) => b({ ox, kind: 'flame', len: 3.0, w: 1.0, cone: 1.3, rel: 0.1, dmg: 0.2, pen: 3, spd: 0.55, life: 0.45, spread: 0.3, bs: 1.0, recoil: 0.1 })));
 T('thunder', 'Thunder', 'Sniper', 2, 30, 'railgun',
-  [b({ kind: 'rail', ox: -0.5, len: 5.0, w: 0.85, rel: 2.4, dmg: 4.5, pen: 6, spd: 2.5, life: 0.85, bs: 0.75, spread: 0 }),
-    b({ kind: 'rail', ox: 0.5, len: 5.0, w: 0.85, rel: 2.4, dmg: 4.5, pen: 6, spd: 2.5, life: 0.85, bs: 0.75, spread: 0, delay: 0.5 })], { fov: 1.3 });
+  [b({ kind: 'rail', ox: -0.5, len: 5.0, w: 0.85, rel: 6.0, dmg: 4.5, pen: 6, spd: 2.5, life: 0.85, bs: 0.75, spread: 0 }),
+    b({ kind: 'rail', ox: 0.5, len: 5.0, w: 0.85, rel: 6.0, dmg: 4.5, pen: 6, spd: 2.5, life: 0.85, bs: 0.75, spread: 0, delay: 0.5 })], { fov: 1.3 });
 T('apex', 'Apex', 'Special', 2, 30, 'blastlord',
   [b({ kind: 'blast', len: 3.4, w: 1.9, rel: 2.1, dmg: 2.6, pen: 2.4, spd: 0.75, bs: 1.9, recoil: 3 })]);
 
@@ -164,7 +164,7 @@ T('orbitronsr', 'Constellation', 'Special', 4, 110, 'orbitronjr',
   [b({ kind: 'orbit', len: 2.8, w: 1.1, rel: 0.45, dmg: 1.0, pen: 3.5, maxOrb: 12, life: 8 }), b({ len: 3.6, w: 1.0, dmg: 1.0 }), b({ a: PI, len: 3.0, w: 0.9, dmg: 0.8, delay: 0.5 })],
   { unlock: { type: 'gems', price: 40000 } });
 T('striker', 'Striker', 'Sniper', 4, 110, 'ace',
-  [b({ kind: 'rail', len: 5.8, w: 1.1, rel: 2.0, dmg: 7.5, pen: 7, spd: 2.6, life: 0.9, bs: 0.8, spread: 0 })],
+  [b({ kind: 'rail', len: 5.8, w: 1.1, rel: 5.0, dmg: 7.5, pen: 7, spd: 2.6, life: 0.9, bs: 0.8, spread: 0 })],
   { fov: 1.45, unlock: { type: 'gems', price: 35000 } });
 T('blastking', 'Demolisher', 'Special', 4, 110, 'apex',
   [-0.5, 0.5].map((ox, i) => b({ ox, kind: 'blast', len: 3.4, w: 1.5, rel: 2.0, dmg: 2.2, pen: 2.2, spd: 0.8, bs: 1.6, recoil: 2, delay: i * 0.5 })));

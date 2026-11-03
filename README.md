@@ -80,7 +80,9 @@ The server is authoritative. It runs at 30 ticks/s and sends area-of-interest sn
 - Railgun-class tanks fire a long neon beam that pierces shapes, tanks and bullets. Each target is hit once, and the beam loses 20% damage per target.
 - Health bars show a short "damage trail" that drains after each hit.
 - Spiked tanks: the spike tips deal damage too (they reach past the body), and ramming damage scales with the **Damage** stat instead of Body Damage.
-- The spawn shield blocks damage but not attacking. Hurting another tank ends your own shield.
+- The spawn shield blocks damage but not attacking. Hurting another tank ends your own shield. Bots respawn with a shorter (8 s) shield.
+- Bot levels follow the real players in the server, re-rolled on every respawn, so a new player meets low-level bots.
+- Health doesn't regenerate during the 4 seconds after taking damage.
 - **Recover Last:** when you die, your tank and stat points are saved (even across reloads). On your next spawn, one button restores them.
 
 ## Originality

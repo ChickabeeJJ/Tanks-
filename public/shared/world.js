@@ -280,13 +280,14 @@ export class World {
     const [x, z] = this.spawnPoint(t);
     t.x = x; t.z = z; t.vx = 0; t.vz = 0;
     t.tankId = 'default';
+    if (t.isBot) { t.level = this.botLevelFor(); t.infoVer++; } // bots stay matched to the players here
     t.stats = [0, 0, 0, 0, 0, 0, 0, 0];
     t.spent = 0;
     t.d = null;
     this.recalc(t);
     t.hp = t.d.maxHp;
     t.alive = true;
-    t.shieldUntil = this.time + SPAWN_SHIELD;
+    t.shieldUntil = this.time + (t.isBot ? 8 : SPAWN_SHIELD); // bots: short shield so new players can fight them
     t.cd = [];
     t.orbs = 0;
     t.stillT = 0;
@@ -568,7 +569,7 @@ export class World {
       if (t.hp < t.d.maxHp) {
         let rg = t.d.regen;
         if (now - t.lastDmg > 25) rg += 0.08;
-        else if (now - t.lastDmg < 3) rg *= 0.3;
+        else if (now - t.lastDmg < 4) rg = 0; // no regen while under fire
         t.hp = Math.min(t.d.maxHp, t.hp + t.d.maxHp * rg * DT);
       }
       this.fireTank(t);
@@ -904,8 +905,20 @@ export class World {
     }
   }
 
+  // bot levels follow the real players in the server (a new player meets low-level bots,
+  // veterans meet strong ones); with nobody here, a spread like a real public server
+  botLevelFor() {
+    const lv = [];
+    for (const t of this.tanks.values()) if (!t.isBot) lv.push(t.level);
+    if (!lv.length) return Math.min(60, botLevel());
+    const avg = lv.reduce((a, b) => a + b, 0) / lv.length;
+    const r = rand();
+    const f = r < 0.6 ? 0.5 + rand() * 0.6 : r < 0.9 ? 0.9 + rand() * 0.5 : 1.3 + rand() * 0.6;
+    return clamp(Math.round(avg * f + rand() * 6), 1, MAX_LEVEL);
+  }
+
   addBot() {
-    const level = botLevel();
+    const level = this.botLevelFor();
     const owned = [];
     for (const d of Object.values(TANKS)) {
       if (d.unlock.type !== 'level' && rand() < 0.25) owned.push(d.id);

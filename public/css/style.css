@@ -1012,3 +1012,12 @@ body.touch #b-recover { top: 112px; height: 40px; font-size: 16px; }
 }
 .gift .tm { top: 6px; right: 8px; line-height: 1.2; }
 .gift .amt { bottom: 6px; line-height: 1.2; }
+
+/* ================================================================ round 12 */
+/* the close (X) button always sits above every other element of a menu */
+.modal .mclose { z-index: 60; }
+.modal .mtitle { z-index: 55; }
+/* mobile battle: hide the side columns (store, gifts, rank...) - only the Lobby button and controls stay */
+body.touch.in-arena #left, body.touch.in-arena #right { display: none !important; }
+/* punchier icons on buttons */
+.rbtn svg.ic, .btn svg.ic, .tf svg.ic { filter: saturate(1.4) contrast(1.06); }

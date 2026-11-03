@@ -22,7 +22,7 @@ export function createHUD(G) {
       <div id="xpbar">
         <div class="track"><div class="fill"><div class="gloss"></div><div class="shine"></div></div></div>
         <div class="txt lbl"></div>
-        <span class="star l">${ic('star', 54)}</span><span class="star r">${ic('star', 54)}</span>
+        <span class="star l">${ic('star', 54).replace('url(#icol)', 'url(#icolT)')}</span><span class="star r">${ic('star', 54).replace('url(#icol)', 'url(#icolT)')}</span>
       </div>
       <div id="lvl" class="lbl"></div>
     </div>

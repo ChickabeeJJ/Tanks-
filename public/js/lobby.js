@@ -248,8 +248,14 @@ export class Lobby {
     }
     // portals
     for (const po of LOBBY.portals) {
-      const r = po.big ? 7.5 : 6; // bigger portals
-      if (Math.hypot(po.x - p.x, po.z - p.z) < r) {
+      // enter only by driving through the arch's opening (not just near the portal)
+      const sc = (po.big ? 1.35 : 1) * 1.5; // same scale as the 3D portal
+      const nd = Math.hypot(po.x, po.z) || 1, nx = -po.x / nd, nz = -po.z / nd; // arch faces the lobby centre
+      const rx = p.x - po.x, rz = p.z - po.z;
+      const front = rx * nx + rz * nz; // distance in front of the arch plane
+      const side = Math.abs(rx * -nz + rz * nx); // sideways from the arch centre
+      const r = po.big ? 7.5 : 6; // used for the locked-portal push-back
+      if (front < 0.9 && front > -4 && side < 3.3 * sc) {
         const mode = MODES[po.id];
         if (mode.minLevel && profile.level < mode.minLevel) {
           if (!this.inside[po.id]) G.hud.toast(`Reach Level ${mode.minLevel} to enter ${mode.name}!`, 'red');

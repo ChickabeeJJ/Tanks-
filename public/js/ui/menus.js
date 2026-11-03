@@ -640,10 +640,11 @@ export function createMenus(G) {
       const icon = sg.tank
         ? `<image href="${tankIcon(sg.tank)}" x="${ix - 26}" y="${iy - 26}" width="52" height="52" transform="rotate(${mid} ${ix} ${iy})"/>`
         : `<g transform="rotate(${mid} ${ix} ${iy})">${ic(sg.gems ? 'gem' : 'star', 40).replace('<svg ', `<svg x="${ix - 20}" y="${iy - 20}" `)}</g>`;
-      // label runs along the radius (outward), so it never spills into the neighbouring slices
-      const [tx, ty] = pt(R * 0.45, mid);
-      deco += icon + `<text x="${tx}" y="${ty}" transform="rotate(${mid - 90} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle"
-        font-family="Fredoka, sans-serif" font-weight="700" font-size="${sg.tank ? 13 : 16}" ${sg.tank ? 'textLength="58" lengthAdjust="spacingAndGlyphs"' : ''} fill="#fff" stroke="${shade(sg.color, 0.45)}" stroke-width="4" paint-order="stroke">${sg.tank ? '' : '+'}${segValue(sg)}</text>`;
+      // short value label along the arc where the slice is wide enough; tank slices show only their icon
+      const [tx, ty] = pt(R * 0.53, mid);
+      if (!sg.tank) deco += `<text x="${tx}" y="${ty}" transform="rotate(${mid} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle"
+        font-family="Fredoka, sans-serif" font-weight="700" font-size="15" fill="#fff" stroke="${shade(sg.color, 0.45)}" stroke-width="4" paint-order="stroke">+${segValue(sg)}</text>`;
+      deco += icon;
     });
     let bulbs = '';
     for (let k = 0; k < 24; k++) { const [bx, by] = pt(R + 8, k * 15); bulbs += `<circle class="bulb ${k % 2 ? 'b2' : ''}" cx="${bx}" cy="${by}" r="4.2"/>`; }

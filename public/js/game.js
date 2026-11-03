@@ -70,8 +70,10 @@ export class Arena {
   // ------------------------------------------------------------------ lifecycle
   async start(mode, roomId) {
     // when the tab is hidden, tell the server we stopped (no drifting while away)
+    // and when it comes back, drop any effects that piled up while rendering was paused
     this.onHide = () => {
       if (document.hidden && this.conn && this.ready) this.conn.send({ t: 'in', s: ++this.seq, mx: 0, mz: 0, a: this.aim, f: 0 });
+      if (!document.hidden) this.clearEffects();
     };
     document.addEventListener('visibilitychange', this.onHide);
     this.mode = mode;
@@ -376,7 +378,20 @@ export class Arena {
     }
   }
 
+  // remove every transient effect (used after the tab was in the background)
+  clearEffects() {
+    if (!this.root) return;
+    for (const st of this.streaks || []) { this.root.remove(st.m); st.m.material.dispose(); }
+    for (const b of this.blasts || []) { this.root.remove(b.m); if (!b.shared) b.m.geometry.dispose(); b.m.material.dispose(); }
+    this.streaks = []; this.blasts = []; this.parts = [];
+    if (this.snaps && this.snaps.length > 1) this.snaps.splice(0, this.snaps.length - 1);
+    this.offset = null;
+  }
+
   onFx(f) {
+    // rendering is paused while the tab is hidden: don't queue effects that would all appear at once later
+    if (document.hidden) return;
+    if ((this.streaks && this.streaks.length > 48) || (this.blasts && this.blasts.length > 90)) return;
     const [type, x, z, a] = f;
     if (type === FX.POP) {
       const s = SHAPES[SHAPE_LIST[a]];

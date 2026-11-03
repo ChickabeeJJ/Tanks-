@@ -70,6 +70,15 @@ if (typeof document !== 'undefined' && !document.getElementById('icol-defs')) {
         <feFuncR type="linear" slope="0.36"/><feFuncG type="linear" slope="0.36"/><feFuncB type="linear" slope="0.42"/>
       </feComponentTransfer>
       <feMerge><feMergeNode in="dk"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="icolT" x="-35%" y="-35%" width="170%" height="170%" color-interpolation-filters="sRGB">
+      <feMorphology in="SourceGraphic" operator="dilate" radius="1.5" result="m"/>
+      <feOffset in="m" dx="3.40" dy="0.00" result="o0"/><feOffset in="m" dx="3.14" dy="1.30" result="o1"/><feOffset in="m" dx="2.40" dy="2.40" result="o2"/><feOffset in="m" dx="1.30" dy="3.14" result="o3"/><feOffset in="m" dx="0.00" dy="3.40" result="o4"/><feOffset in="m" dx="-1.30" dy="3.14" result="o5"/><feOffset in="m" dx="-2.40" dy="2.40" result="o6"/><feOffset in="m" dx="-3.14" dy="1.30" result="o7"/><feOffset in="m" dx="-3.40" dy="0.00" result="o8"/><feOffset in="m" dx="-3.14" dy="-1.30" result="o9"/><feOffset in="m" dx="-2.40" dy="-2.40" result="o10"/><feOffset in="m" dx="-1.30" dy="-3.14" result="o11"/><feOffset in="m" dx="-0.00" dy="-3.40" result="o12"/><feOffset in="m" dx="1.30" dy="-3.14" result="o13"/><feOffset in="m" dx="2.40" dy="-2.40" result="o14"/><feOffset in="m" dx="3.14" dy="-1.30" result="o15"/>
+      <feMerge result="d"><feMergeNode in="o0"/><feMergeNode in="o1"/><feMergeNode in="o2"/><feMergeNode in="o3"/><feMergeNode in="o4"/><feMergeNode in="o5"/><feMergeNode in="o6"/><feMergeNode in="o7"/><feMergeNode in="o8"/><feMergeNode in="o9"/><feMergeNode in="o10"/><feMergeNode in="o11"/><feMergeNode in="o12"/><feMergeNode in="o13"/><feMergeNode in="o14"/><feMergeNode in="o15"/></feMerge>
+      <feComponentTransfer in="d" result="dk">
+        <feFuncR type="linear" slope="0.36"/><feFuncG type="linear" slope="0.36"/><feFuncB type="linear" slope="0.42"/>
+      </feComponentTransfer>
+      <feMerge><feMergeNode in="dk"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter></defs></svg>`;
   document.body.appendChild(d);
 }

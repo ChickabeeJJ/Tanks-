@@ -2,7 +2,7 @@
 //   node scripts/make-assets.cjs covers            -> store-assets/cover-landscape.png (1920x1080), cover-portrait.png (800x1200), cover-square.png (800x800)
 //   node scripts/make-assets.cjs video-landscape   -> store-assets/preview-landscape.mp4 (1920x1080, 18s)
 //   node scripts/make-assets.cjs video-portrait    -> store-assets/preview-portrait.mp4 (1080x1620, 18s)
-// Options: --url http://localhost:3000/  --title "Tank Rumble"
+// Options: --url http://localhost:3000/  --title "Tank Rumble" (covers: adds the title logo; without it covers have no text)
 // The game server (npm start) must be running. Time is virtualised (page.clock), so the videos are
 // smooth 30 fps no matter how slow the machine renders.
 const { chromium } = require('playwright');
@@ -19,14 +19,14 @@ fs.mkdirSync(OUT, { recursive: true });
 
 const SAVE = { level: 120, xp: 0, gems: 50000, tutorialDone: true, skin: 'default', owned: [], settings: { quality: 'high', names: true, sfx: 0 } };
 
-async function open(browser, w, h, dsf) {
+async function open(browser, w, h, dsf, save = SAVE) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dsf });
   const page = await ctx.newPage();
   page.setDefaultTimeout(240000);
   await page.route('**/sdk.crazygames.com/**', (r) => r.abort());
   // stage the scene on a local (in-browser) server so the script can arrange tanks and shapes
   await page.route(new URL('config.js', URL0).href, (r) => r.fulfill({ contentType: 'text/javascript', body: 'window.TANKS_CONFIG = { offline: true };' }));
-  await page.addInitScript((s) => localStorage.setItem('tanks_save_v1', JSON.stringify(s)), SAVE);
+  await page.addInitScript((s) => localStorage.setItem('tanks_save_v1', JSON.stringify(s)), save);
   return page;
 }
 
@@ -118,12 +118,12 @@ async function covers(browser) {
     { name: 'cover-square.png', w: 600, h: 600, dsf: 4 / 3, logo: 70, top: '4%', stacked: false, zoom: 0.65, pitch: 0.62 },
   ];
   for (const s of specs) {
-    const page = await open(browser, s.w, s.h, s.dsf);
+    const page = await open(browser, s.w, s.h, s.dsf, { ...SAVE, settings: { ...SAVE.settings, names: false } }); // no name labels
     await bootArena(page);
     await stage(page, { zoom: s.zoom, pitch: s.pitch, yaw: 0, freeze: true });
     await hideUi(page);
     await page.waitForTimeout(900); // bullets in the air
-    await addLogo(page, s.logo, s.top, s.stacked);
+    if (process.argv.includes('--title')) await addLogo(page, s.logo, s.top, s.stacked); // covers are text-free by default
     await page.screenshot({ path: path.join(OUT, s.name) });
     console.log('wrote', s.name);
     await page.close();
