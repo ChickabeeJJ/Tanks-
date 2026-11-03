@@ -516,8 +516,8 @@ export function buildLobby(skinId) {
       const hot = new THREE.Color(3, 2.4, 0.8), cold = new THREE.Color(1.6, 0.4, 1.4);
       anim.push((t) => {
         disc.rotation.y = t * 1.5;
-        const k0 = Math.floor(t * 8);
-        bulbs.forEach((bm, k) => bm.material.color.copy((k + k0) % 2 ? hot : cold));
+        // slow, smooth colour drift around the rim (no on/off blinking)
+        bulbs.forEach((bm, k) => bm.material.color.copy(cold).lerp(hot, 0.5 + 0.5 * Math.sin(t * 1.2 + k * 0.6)));
       });
     } else if (p.id === 'skins') {
       const tk = buildTank('scout', 'tiger');
@@ -578,7 +578,7 @@ export function buildLobby(skinId) {
     const sub = textSprite(p.sub, { size: 40, height: 1.4 * 1.4, color: '#fff7a8' });
     sub.position.set(0, (p.big ? 5.0 : 5.6) * s + 0.3, 0);
     g.add(label, sub);
-    anim.push((t) => { fill.material.opacity = 0.5 + Math.sin(t * 3 + p.x) * 0.12; core.material.opacity = 0.35 + Math.sin(t * 4.2 + p.x) * 0.18; });
+    anim.push((t) => { fill.material.opacity = 0.52 + Math.sin(t * 1.2 + p.x) * 0.05; core.material.opacity = 0.38 + Math.sin(t * 1.5 + p.x) * 0.07; }); // gentle breathing
     root.add(g);
   }
 

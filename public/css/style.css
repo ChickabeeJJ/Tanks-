@@ -1123,3 +1123,25 @@ svg.ic:has(path[fill="#ffc400"]), svg.ic:has(path[fill="#00c8ff"]) { filter: sat
 .ev-prize .lbl { color: #ffe15a !important; }
 .modal .mbody :is(.up-head, .up-bal) :is(.lbl, .up-h1), .modal .mbody .up-h1 { color: #fff !important; text-shadow: 0 2px 0 rgba(11,26,51,.45) !important; }
 .btn.gray { background: linear-gradient(180deg, #a3afbd, #7e8b9b 55%, #6b7787); --o: #3e4856; color: #fff; }
+
+/* ================================================================ gentle glows (no blinking) */
+.gift.ready { animation: giftBreath 3.2s ease-in-out infinite; }
+@keyframes giftBreath { 50% { box-shadow: inset 0 0 0 2px rgba(255,255,255,.45), inset 0 4px 0 rgba(255,255,255,.55), inset 0 -8px 0 rgba(6,60,120,.35), 0 4px 0 #0b5598, 0 0 10px rgba(120,210,255,.35); } }
+.btn.glow, .rk-all { animation: softGlow 3s ease-in-out infinite; }
+@keyframes softGlow { 50% { box-shadow: inset 0 0 0 2.5px rgba(255,255,255,.38), 0 4px 0 color-mix(in srgb, var(--o) 80%, transparent), 0 0 12px 2px rgba(120,255,150,.3); } }
+.bulb { animation: bulbSoft 2.4s ease-in-out infinite; }
+.bulb.b2 { animation-delay: -1.2s; }
+@keyframes bulbSoft { 0%, 100% { fill: #fff7c2; } 50% { fill: #ffd060; } }
+.up-pips i.next { animation: pipSoft 2.6s ease-in-out infinite; }
+@keyframes pipSoft { 50% { opacity: .7; } }
+#b-recover { animation: recIn .35s cubic-bezier(.2,1.6,.4,1), recSoft 3s ease-in-out .4s infinite; }
+@keyframes recSoft { 50% { transform: translateX(-50%) scale(1.025); } }
+.tut-portal2 .tp-core { animation-duration: 3s; }
+.cs-spot { animation-duration: 3.5s !important; }
+.charge-shake1 .cs-glow { animation: glowSoft 1.1s ease-in-out infinite; }
+.charge-shake2 .cs-glow { animation: glowSoft .8s ease-in-out infinite; }
+.charge-shake3 .cs-glow { animation: glowSoft .55s ease-in-out infinite; }
+@keyframes glowSoft { 50% { filter: brightness(1.18); } }
+#b-gifts.ready .ic { animation-duration: 2.6s; }
+.gift.ready::before { animation-duration: 4.5s; }
+#xpbar .shine { animation-duration: 5s; opacity: .6; }
