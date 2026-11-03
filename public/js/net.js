@@ -12,7 +12,9 @@ export async function resolveServer() {
   if (c.offline) return null;
   if (c.server) return c.server;
   if (!location.protocol.startsWith('http')) return null;
-  // Same-origin server (when the game is served by `npm start`)
+  // Static file hosts (CrazyGames, Vercel, GitHub Pages) never run the game server: don't probe them
+  if (/(^|\.)(crazygames\.com|vercel\.app|github\.io)$/.test(location.hostname)) return null;
+  // Same-origin server (when the game is served by `npm start` or the Render deploy)
   try {
     const ctl = new AbortController();
     const to = setTimeout(() => ctl.abort(), 1500);
@@ -25,6 +27,13 @@ export async function resolveServer() {
   const u = new URL('ws', location.href);
   u.protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   return u.toString();
+}
+
+// Wake a sleeping free-tier server as early as possible (called once at boot).
+export function wakeServer() {
+  const c = cfg();
+  if (c.offline || !c.server) return;
+  try { fetch(new URL('api/ping', apiBase(c.server)), { cache: 'no-store', mode: 'cors' }).catch(() => {}); } catch { /* */ }
 }
 
 export function apiBase(wsUrl) {

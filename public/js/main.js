@@ -9,7 +9,7 @@ import { createMenus } from './ui/menus.js';
 import { Arena } from './game.js';
 import { Lobby } from './lobby.js';
 import { Tutorial } from './tutorial.js';
-import { resolveServer, apiBase, localServer } from './net.js';
+import { resolveServer, apiBase, localServer, wakeServer } from './net.js';
 import { MODES } from '../shared/config.js';
 import { cleanName, cleanChat } from '../shared/filter.js';
 
@@ -145,6 +145,7 @@ function onKey(code) {
 // ------------------------------------------------------------------ boot
 async function boot() {
   progress(10, 'Starting...');
+  wakeServer(); // start waking the multiplayer server while the game loads
   await SDK.init();
   SDK.loadingStart();
   progress(30, 'Loading save...');
