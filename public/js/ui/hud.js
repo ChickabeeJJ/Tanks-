@@ -198,14 +198,16 @@ export function createHUD(G) {
     toggleQ() { if (this.mode !== 'arena') return; this.qOpen ? this.closeQ() : this.openQ(); },
     openQ() { this.qOpen = true; this.closeE(); clearTimeout(this._qT); els.q.classList.remove('hidden', 'closing'); els.q.classList.add('opening'); this._qT = setTimeout(() => els.q.classList.remove('opening'), 520); $('#topbar', root).classList.add('mode-q'); this._qKey = ''; G.arena && G.arena.refreshQ(); },
     closeQ() { const was = this.qOpen; this.qOpen = false; clearTimeout(this._qT); if (was && !els.q.classList.contains('hidden')) { els.q.classList.remove('opening'); els.q.classList.add('closing'); this._qT = setTimeout(() => { els.q.classList.add('hidden'); els.q.classList.remove('closing'); }, 240); } else els.q.classList.add('hidden'); $('#topbar', root).classList.remove('mode-q'); },
-    renderQ(opts) {
+    renderQ(opts, endName) {
       badge(els.qBadge, opts.filter((o) => o.usable).length);
       if (!this.qOpen) return;
-      const key = opts.map((o) => o.def.id + o.tag).join();
+      const key = opts.map((o) => o.def.id + o.tag).join() + '|' + (endName || '');
       if (key === this._qKey) return;
       this._qKey = key;
       if (!opts.length) {
-        els.q.innerHTML = '<div class="tcard empty lbl">No upgrades right now.<br>Level up to unlock more!</div>';
+        els.q.innerHTML = endName
+          ? `<div class="tcard empty maxed">${ic('star', 30)}<div><div class="lbl mx-t">Fully upgraded!</div><div class="mx-s"><b>${esc(endName)}</b> has no further upgrades.</div></div></div>`
+          : '<div class="tcard empty lbl">No upgrades right now.<br>Level up to unlock more!</div>';
         return;
       }
       els.q.innerHTML = '';

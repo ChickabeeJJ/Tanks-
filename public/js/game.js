@@ -316,7 +316,12 @@ export class Arena {
     }).sort((a, b) => (b.usable - a.usable) || (a.def.level - b.def.level));
   }
 
-  refreshQ() { this.G.hud.renderQ(this.upgradeList()); }
+  refreshQ() {
+    const list = this.upgradeList();
+    // alive with nothing to pick = end of this tank's upgrade path (level-locked upgrades are still listed)
+    const end = !list.length && this.alive && this.me ? getTank(this.me.tk).name : null;
+    this.G.hud.renderQ(list, end);
+  }
   refreshE() { this.G.hud.renderE(this.me); }
 
   chooseUpgrade(id) {
@@ -623,8 +628,7 @@ export class Arena {
     this.hudT -= dt;
     if (this.hudT <= 0 && me) {
       this.hudT = 0.12;
-      const opts = this.upgradeList();
-      G.hud.renderQ(opts);
+      this.refreshQ();
       G.hud.renderE(me);
       G.hud.setCombat(this.alive ? me.cb || 0 : 0);
     }
