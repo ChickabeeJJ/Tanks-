@@ -1081,12 +1081,8 @@ body.touch.in-arena #left, body.touch.in-arena #right { display: none !important
 .gift { box-shadow: inset 0 3px 0 rgba(255,255,255,.35), inset 0 -7px 0 rgba(0,0,0,.18), 0 4px 0 color-mix(in srgb, var(--o) 85%, transparent); }
 /* claimable: sunburst + soft glow behind the icon, glossy top, beveled bottom and a light sweep */
 .gift.ready {
-  background:
-    radial-gradient(circle at 50% 44%, rgba(255,255,255,.75) 0, rgba(255,255,255,.25) 26%, transparent 52%),
-    repeating-conic-gradient(from 0deg at 50% 44%, rgba(255,255,255,.16) 0 10deg, transparent 10deg 22.5deg),
-    linear-gradient(180deg, #8fe2ff 0%, #34b4fa 38%, #1a90e6 72%, #1072c9 100%);
-  box-shadow: inset 0 0 0 2px rgba(255,255,255,.45), inset 0 4px 0 rgba(255,255,255,.55), inset 0 -8px 0 rgba(6,60,120,.35),
-    0 4px 0 #0b5598, 0 0 16px rgba(90,200,255,.55);
+  background: linear-gradient(180deg, #8fe2ff 0%, #34b4fa 38%, #1a90e6 72%, #1072c9 100%);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.45), inset 0 4px 0 rgba(255,255,255,.55), inset 0 -8px 0 rgba(6,60,120,.35), 0 4px 0 #0b5598;
   overflow: visible;
 }
 .gift.ready::before { content: ''; position: absolute; inset: 3px; border-radius: 9px; pointer-events: none;
@@ -1094,9 +1090,12 @@ body.touch.in-arena #left, body.touch.in-arena #right { display: none !important
     linear-gradient(115deg, transparent 35%, rgba(255,255,255,.55) 48%, transparent 60%) no-repeat;
   background-size: 100% 100%, 260% 100%; background-position: 0 0, 160% 0; animation: giftSweep 2.6s ease-in-out infinite; }
 @keyframes giftSweep { 0%, 55% { background-position: 0 0, 160% 0; } 100% { background-position: 0 0, -60% 0; } }
-.gift.ready .ic { position: relative; filter: drop-shadow(0 4px 0 rgba(6,50,110,.35)) drop-shadow(0 0 8px rgba(255,255,255,.6)); animation: rkfloat 2.2s ease-in-out infinite; }
+.gift.ready .ic { position: relative; filter: drop-shadow(0 4px 0 rgba(6,50,110,.35)); animation: rkfloat 2.2s ease-in-out infinite; }
 .gift.ready .amt { text-shadow: -2px -2px 0 #0b4f8f, 2px -2px 0 #0b4f8f, -2px 2px 0 #0b4f8f, 2px 2px 0 #0b4f8f, 0 3px 0 rgba(11,79,143,.6); }
 /* locked tiles: same depth, darker */
-.gift.lock-gem { background: radial-gradient(circle at 50% 44%, rgba(255,255,255,.14), transparent 55%), linear-gradient(180deg, #3a93b0, #1e637d 70%, #164f66); }
-.gift.lock-xp { background: radial-gradient(circle at 50% 44%, rgba(255,255,255,.14), transparent 55%), linear-gradient(180deg, #bb9a2b, #7f6512 70%, #66500d); }
+.gift.lock-gem { background: linear-gradient(180deg, #3a93b0, #1e637d 70%, #164f66); }
+.gift.lock-xp { background: linear-gradient(180deg, #bb9a2b, #7f6512 70%, #66500d); }
 .gift.done { background: linear-gradient(180deg, #b6c1cd, #8796a6 70%, #74818f); }
+
+/* XP stars and gems: extra vivid everywhere */
+svg.ic:has(path[fill="#ffc400"]), svg.ic:has(path[fill="#00c8ff"]) { filter: saturate(1.5) contrast(1.08); }

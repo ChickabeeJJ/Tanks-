@@ -15,8 +15,8 @@ const P = {
   clipboard: `<rect x="12" y="10" width="40" height="48" rx="5" fill="#ffffff"/><rect x="22" y="5" width="20" height="10" rx="3" fill="#ff9f1a"/>
     <path d="M20 26h24M20 35h24M20 44h16" ${L('#2f8fe0', 4)}/>`,
   shield: `<path d="M32 5l22 8v16c0 14-9 24-22 30C19 53 10 43 10 29V13z" fill="#9fd0ff"/><path d="M32 13l14 5v11c0 9-6 16-14 20z" fill="#d8eeff"/><path d="M26 28l6 10 8-14" ${L('#1f7fd6', 4)}/>`,
-  star: `<path d="M32 4l8.5 17.5L60 24l-14 13.5L49.5 57 32 47.5 14.5 57 18 37.5 4 24l19.5-2.5z" fill="#ffd21f"/><path d="M32 13l5 10 10 1.5" ${L('#fff6b0', 3.5)}/>`,
-  gem: `<path d="M16 8h32l12 16-28 34L4 24z" fill="#3fd0ff"/><path d="M4 24h56L32 58z" fill="#1fb4ec"/><path d="M18 24l6-16h16l6 16z" fill="#a8ecff"/>`,
+  star: `<path d="M32 4l8.5 17.5L60 24l-14 13.5L49.5 57 32 47.5 14.5 57 18 37.5 4 24l19.5-2.5z" fill="#ffc400"/><path d="M32 13l5 10 10 1.5" ${L('#fff38a', 3.5)}/>`,
+  gem: `<path d="M16 8h32l12 16-28 34L4 24z" fill="#00c8ff"/><path d="M4 24h56L32 58z" fill="#0094ff"/><path d="M18 24l6-16h16l6 16z" fill="#7fe6ff"/>`,
   plus: `<path d="M26 8h12v18h18v12H38v18H26V38H8V26h18z" fill="#ffffff"/>`,
   lock: `<path d="M20 28v-8a12 12 0 0 1 24 0v8" ${L('#c9d3df', 6)}/><rect x="12" y="28" width="40" height="28" rx="5" fill="#ffc21a"/><circle cx="32" cy="40" r="4" fill="#9a6a00"/><path d="M32 42v7" ${L('#9a6a00', 4)}/>`,
   unlock: `<path d="M20 28v-8a12 12 0 0 1 23-4" ${L('#c9d3df', 6)}/><rect x="12" y="28" width="40" height="28" rx="5" fill="#ffc21a"/><circle cx="32" cy="40" r="4" fill="#9a6a00"/><path d="M32 42v7" ${L('#9a6a00', 4)}/>`,
