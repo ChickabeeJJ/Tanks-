@@ -678,7 +678,7 @@ export function createMenus(G) {
       <circle cx="${C}" cy="${C}" r="36" fill="url(#hubg)" stroke="#7a9bbf" stroke-width="4"/>
       ${ic('star', 44).replace('<svg ', `<svg x="${C - 22}" y="${C - 22}" `)}
     </svg>
-    <svg class="pw-flag" viewBox="0 0 46 56"><path d="M23 54L4 18A20 20 0 1 1 42 18z" fill="#ff3b4f" stroke="#94101d" stroke-width="4" stroke-linejoin="round"/><circle cx="23" cy="18" r="7" fill="#fff"/></svg>`;
+    <svg class="pw-flag" viewBox="-3 -3 52 66"><path d="M23 59L7.4 29A18 18 0 1 1 38.6 29z" fill="#ff3b4f" stroke="#94101d" stroke-width="4" stroke-linejoin="round"/><circle cx="23" cy="20" r="7" fill="#fff"/></svg>`;
   }
   function wheel() {
     let fast = false, spinning = false;

@@ -1163,3 +1163,4 @@ body.touch #b-recover .rec-x .ic { width: 13px; height: 13px; }
 #b-recover .rec-x .ic { width: 10px; height: 10px; }
 body.touch #b-recover .rec-x { width: 22px; height: 22px; top: -9px; left: -9px; }
 body.touch #b-recover .rec-x .ic { width: 11px; height: 11px; }
+.pw-flag { width: 46px; height: 58px; top: -22px; overflow: visible; }
