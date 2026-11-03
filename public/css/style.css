@@ -1145,3 +1145,6 @@ svg.ic:has(path[fill="#ffc400"]), svg.ic:has(path[fill="#00c8ff"]) { filter: sat
 #b-gifts.ready .ic { animation-duration: 2.6s; }
 .gift.ready::before { animation-duration: 4.5s; }
 #xpbar .shine { animation-duration: 5s; opacity: .6; }
+/* the Level text keeps its outline: a real stroke drawn behind the letters (round, never clipped) */
+#lvl { -webkit-text-stroke: 6px #8a4b00 !important; paint-order: stroke fill; text-shadow: 0 3px 0 rgba(138,75,0,.55) !important; letter-spacing: .5px; }
+@media (max-width: 820px), (max-height: 560px) { #lvl { -webkit-text-stroke-width: 5px !important; } }
