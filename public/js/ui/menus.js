@@ -987,13 +987,15 @@ export function createMenus(G) {
         wrap.querySelector('.tsh-ix').onclick = () => index(sel.id);
         wrap.querySelector('.tsh-buy').onclick = () => {
           if (profile.ownsTank(sel.id)) return;
-          if (!profile.spend(sel.unlock.price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); return; }
-          profile.giveTank(sel.id);
-          Audio.reward();
-          SDK.happytime();
-          G.hud.toast(`Bought ${sel.name}!`, 'gold');
-          G.onOwnedChanged();
-          st.redraw();
+          const d = sel;
+          buyTank(d, () => {
+            if (!profile.spend(d.unlock.price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); return; }
+            profile.giveTank(d.id);
+            Audio.reward();
+            G.hud.toast(`${d.name} unlocked forever!`, 'gold');
+            G.onOwnedChanged();
+            tankShop();
+          });
         };
         b.appendChild(wrap);
         const s0 = g.querySelector('.tcd.sel');
@@ -1259,9 +1261,42 @@ export function createMenus(G) {
     });
   }
 
+  // ------------------------------------------------------------------ buy-a-tank confirmation
+  function buyTank(def, yes) {
+    modal({
+      title: 'Unlock Tank', icon: 'shield',
+      render(b) {
+        const col = CLS_COL[def.cls] || '#2f9dff';
+        const price = def.unlock.price, have = profile.d.gems, ok = have >= price;
+        const R = tankRatings(def);
+        const el = h(`<div class="bt" style="--cc:${col}">
+          <div class="bt-hero"><div class="tsh-rays"></div>
+            <div class="bt-forever lbl">${ic('check', 16)} Yours forever</div>
+            <img class="bt-img" src="${tankIcon(def.id, 160)}" alt="">
+            <div class="bt-name lbl">${def.name}</div>
+            <div class="bt-sub">${def.cls} · Level ${def.level}+</div></div>
+          <div class="tsh-stats bt-stats">${Object.entries(R).map(([k, v]) => `<div class="tsr"><span>${k}</span><div><i style="width:${Math.max(6, v * 100)}%"></i></div></div>`).join('')}</div>
+          <div class="bt-price">
+            <div><span>Price</span><b class="lbl">${ic('gem', 20)} ${fmtFull(price)}</b></div>
+            <div><span>Your gems</span><b class="lbl">${ic('gem', 20)} ${fmtFull(have)}</b></div>
+            <div class="${ok ? '' : 'bad'}"><span>${ok ? 'After' : 'Missing'}</span><b class="lbl">${ic('gem', 20)} ${fmtFull(Math.abs(have - price))}</b></div>
+          </div>
+          <div class="bt-btns">
+            ${ok ? `<button class="btn green glow bt-yes">${ic('gem', 22)} Buy for ${fmt(price)}</button>` : `<button class="btn yellow bt-get">${ic('basket', 22)} Get Gems</button>`}
+            <button class="btn gray bt-no">Cancel</button></div></div>`);
+        const yesB = el.querySelector('.bt-yes');
+        if (yesB) yesB.onclick = () => { close(); yes(); SDK.happytime(); };
+        const getB = el.querySelector('.bt-get');
+        if (getB) getB.onclick = () => { Audio.click(); store('gems'); };
+        el.querySelector('.bt-no').onclick = () => { Audio.click(); close(); };
+        b.appendChild(el);
+      },
+    });
+  }
+
   const table = {
     store, gifts, quests, rank, index, bag, wheel, chests, settings, list, upgrades,
-    tanks: tankShop, skins: skinShop, death, confirm,
+    tanks: tankShop, skins: skinShop, death, confirm, buyTank,
   };
 
   return {

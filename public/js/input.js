@@ -62,7 +62,7 @@ export const Input = {
       this.mouse.y = e.clientY;
       this.mouse.nx = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.ny = -(e.clientY / window.innerHeight) * 2 + 1;
-      if (this.locked) this.lockDX += e.movementX;
+      if (this.locked) { this.lockDX += e.movementX; this.dragPitch += e.movementY * 0.7; } // shift lock: mouse turns AND tilts the camera
       else if (this.mouse.right) { this.dragYaw += e.movementX; this.dragPitch += e.movementY; }
     });
     canvas.addEventListener('wheel', (e) => { this.wheel += Math.sign(e.deltaY); e.preventDefault(); }, { passive: false });

@@ -277,6 +277,7 @@ export class Arena {
           profile.save();
         }
         this.recoverUsed = false;
+        if (this.G.toggles.lock) { this.G.toggles.lock = false; Input.exitLock(); this.G.hud.setToggles(this.G.toggles); } // free the mouse on death
         Audio.death();
         SDK.gameplayStop();
         this.deaths++;
@@ -309,8 +310,8 @@ export class Arena {
       const usable = canUse(def, lv, owned);
       let tag = '', tagCls = '';
       if (lv < def.level) { tag = `Lv ${def.level}`; tagCls = 'lvl'; }
-      else if (!usable && def.unlock.type === 'gems') { tag = `${fmt(def.unlock.price)} 💎`; tagCls = 'gems'; }
-      else if (!usable && def.unlock.type === 'quest') { tag = 'Quest 📋'; tagCls = 'quest'; }
+      else if (!usable && def.unlock.type === 'gems') { tag = fmt(def.unlock.price); tagCls = 'gems'; }
+      else if (!usable && def.unlock.type === 'quest') { tag = 'Quest'; tagCls = 'quest'; }
       return { def, usable, tag, tagCls };
     }).sort((a, b) => (b.usable - a.usable) || (a.def.level - b.def.level));
   }
@@ -325,11 +326,13 @@ export class Arena {
     if (lv < def.level) { this.G.hud.toast(`Reach level ${def.level} to unlock!`, 'red'); Audio.error(); return; }
     if (canUse(def, lv, profile.d.owned)) { this.conn.send({ t: 'up', id }); return; }
     if (def.unlock.type === 'gems') {
-      this.G.menus.open('confirm', `Buy <b>${def.name}</b> for 💎 ${fmtFull(def.unlock.price)}?<br><span class="muted">You keep it forever.</span>`, () => {
+      this.G.menus.open('buyTank', def, () => {
         if (!profile.spend(def.unlock.price)) { this.G.hud.toast('Not enough Gems!', 'red'); Audio.error(); return; }
         profile.giveTank(def.id);
         this.G.onOwnedChanged();
         this.conn.send({ t: 'up', id });
+        this.G.hud.toast(`${def.name} unlocked forever!`, 'gold');
+        Audio.reward();
       });
     } else if (def.unlock.type === 'quest') {
       this.G.hud.toast('Complete its Unique quest to unlock!', 'red');

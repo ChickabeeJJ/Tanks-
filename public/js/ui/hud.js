@@ -30,7 +30,7 @@ export function createHUD(G) {
     <div id="xpgain"></div>
   </div>
   <div id="teamscore" class="hidden"></div>
-  <div class="rbtn wbtn yellow hidden" id="b-recover" title="Restore the tank and stats you had when you died">${ic('reload', 26)}<span class="lbl">Recover Last</span></div>
+  <div class="rbtn wbtn yellow hidden" id="b-recover" title="Restore the tank and stats you had when you died">${ic('reload', 26).replace(' filter="url(#icol)"', '')}<span class="lbl">Recover Last</span></div>
   <div id="qpanel" class="hidden"></div>
   <div id="epanel" class="hidden"></div>
   <div id="left">
@@ -58,7 +58,7 @@ export function createHUD(G) {
   <div id="bottomright">
     <div class="rbtn tog" id="t-fire" title="Auto fire (F)">${ic('burst', 30)}<span class="key l">F</span></div>
     <div class="rbtn tog" id="t-flip" title="Turn camera 180 degrees (C)"><span class="lbl" style="font-size:15px">180</span><span class="key l">C</span></div>
-    <div class="rbtn tog" id="t-spin" title="Auto spin (R)">${ic('spin', 30)}<span class="key l">R</span></div>
+    <div class="rbtn tog" id="t-spin" title="Auto spin (R)">${ic('spin', 30).replace(' filter="url(#icol)"', '')}<span class="key l">R</span></div>
     <div class="rbtn tog" id="t-lock" title="Shift lock camera (Shift)">${ic('unlock', 28)}</div>
   </div>
   <div id="bottomcenter" class="lobby-only"><div class="rbtn playbtn green" id="playbtn">${ic('play', 30)}<span class="lbl">Play</span></div></div>
