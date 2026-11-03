@@ -574,9 +574,9 @@ export function buildLobby(skinId) {
     core.position.z = 0.05;
     g.add(arch, arch2, rimG, fill, core);
     const label = textSprite(p.label, { size: 56, height: 2.2 * s });
-    label.position.set(0, 7.2 * s, 0);
+    label.position.set(0, (p.big ? 6.4 : 7.2) * s, 0); // big portal sign a little lower so the top HUD never covers it
     const sub = textSprite(p.sub, { size: 40, height: 1.4 * 1.4, color: '#fff7a8' });
-    sub.position.set(0, 5.6 * s + 0.3, 0);
+    sub.position.set(0, (p.big ? 5.0 : 5.6) * s + 0.3, 0);
     g.add(label, sub);
     anim.push((t) => { fill.material.opacity = 0.5 + Math.sin(t * 3 + p.x) * 0.12; core.material.opacity = 0.35 + Math.sin(t * 4.2 + p.x) * 0.18; });
     root.add(g);
