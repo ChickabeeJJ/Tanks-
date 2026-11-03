@@ -496,6 +496,11 @@ export class World {
       let spd = 42 * b.spd * t.d.bspdMul;
       if (n > 1 && !b.burst) spd *= 0.85 + rand() * 0.3;
       const bl = this.makeBullet(t, b, x, z, a, spd);
+      if (b.kind === 'flame') {
+        // flames carry the tank's own movement, so driving forward doesn't shorten their reach
+        bl.ivx = t.vx; bl.ivz = t.vz;
+        bl.vx += t.vx; bl.vz += t.vz;
+      }
       if (b.kind === 'rail') {
         // full-length neon streak for clients: [type, x, z, angle, range, ownerId, team]
         this.fx.push({ tick: this.tick, d: [FX.RAIL, r1(x), r1(z), r2(a), r1(spd * bl.life), t.id, t.team] });
@@ -608,8 +613,10 @@ export class World {
       }
       if (bl.k === 'flame') {
         bl.r = bl.r0 * (1 + bl.age * 2.4);
-        bl.vx *= 0.95;
-        bl.vz *= 0.95;
+        // only the flame's own push slows down; the inherited tank movement stays
+        const ix = bl.ivx || 0, iz = bl.ivz || 0;
+        bl.vx = ix + (bl.vx - ix) * 0.95;
+        bl.vz = iz + (bl.vz - iz) * 0.95;
       }
       if (bl.k === 'split' && bl.gen < 2 && bl.age > 0.33) {
         const a = Math.atan2(bl.vz, bl.vx), spd = Math.hypot(bl.vx, bl.vz);

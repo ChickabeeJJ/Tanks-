@@ -2,7 +2,9 @@
 import * as THREE from '../../vendor/three.module.min.js';
 import { gridTexture, stripeTexture, skyTexture, textSprite, textCanvas } from './textures.js';
 import { TEAM_COLORS } from '../../shared/config.js';
-import { buildTank } from './models.js';
+import { buildTank, disposeTank } from './models.js';
+import { SKINS } from '../../shared/skins.js';
+import { TANK_LIST } from '../../shared/tanks.js';
 import { Post } from './post.js';
 import { createSky } from './sky.js';
 
@@ -306,6 +308,37 @@ export function buildArena(half, mode, walls = []) {
 }
 
 // ------------------------------------------------------------------ lobby
+
+// Rotating shop display: shows list[i] = [tankId, skinId], swapping every 8 s with a smooth
+// shrink-spin-out / grow-spin-in (eased), never an abrupt change.
+function showcase(list, scale, spin, anim) {
+  const holder = new THREE.Group();
+  let i = Math.floor(Math.random() * list.length);
+  let cur = buildTank(list[i][0], list[i][1]);
+  holder.add(cur.group);
+  const PERIOD = 8, SWAP = 0.9; // seconds; SWAP = length of the transition
+  let swapped = -1;
+  const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+  anim.push((t) => {
+    const cyc = Math.floor(t / PERIOD), ph = t - cyc * PERIOD;
+    let k = 1; // visible amount 0..1
+    if (ph > PERIOD - SWAP / 2) k = 1 - ease((ph - (PERIOD - SWAP / 2)) / (SWAP / 2)); // shrinking out
+    else if (ph < SWAP / 2 && cyc > 0) k = ease(ph / (SWAP / 2)); // growing in
+    if (ph < SWAP / 2 && cyc > 0 && swapped !== cyc) {
+      // swap while invisible (scale ~0)
+      swapped = cyc;
+      holder.remove(cur.group); disposeTank(cur);
+      i = (i + 1) % list.length;
+      cur = buildTank(list[i][0], list[i][1]);
+      holder.add(cur.group);
+    }
+    holder.scale.setScalar(scale * Math.max(0.001, k));
+    holder.position.y = (1 - k) * 1.2; // a little lift while swapping
+    cur.rot.rotation.y = t * spin + (1 - k) * 3; // extra spin during the change
+  });
+  return holder;
+}
+
 export const LOBBY = {
   half: 40,
   padR: 6.4,
@@ -520,10 +553,9 @@ export function buildLobby(skinId) {
         bulbs.forEach((bm, k) => bm.material.color.copy(cold).lerp(hot, 0.5 + 0.5 * Math.sin(t * 1.2 + k * 0.6)));
       });
     } else if (p.id === 'skins') {
-      const tk = buildTank('scout', 'tiger');
-      model = tk.group;
-      model.scale.setScalar(1.2);
-      anim.push((t) => { tk.rot.rotation.y = t * 0.6; });
+      // showcase: a different skin every 8 s (gem-shop and chest skins)
+      const list = SKINS.filter((x) => x.id !== 'default').map((x) => ['scout', x.id]);
+      model = showcase(list, 1.2, 0.6, anim);
     } else if (p.id === 'upgrades') {
       model = new THREE.Group();
       for (let i = 0; i < 5; i++) {
@@ -533,9 +565,9 @@ export function buildLobby(skinId) {
       }
       anim.push((t) => { model.rotation.y = Math.atan2(-p.x, -p.z) + Math.sin(t) * 0.3; });
     } else if (p.id === 'tanks') {
-      const tk = buildTank('fourdouble', 'default');
-      model = tk.group;
-      anim.push((t) => { tk.rot.rotation.y = -t * 0.6; });
+      // showcase: a different tank from the Tank Shop every 8 s
+      const list = TANK_LIST.filter((d) => d.unlock.type === 'gems').map((d) => [d.id, 'default']);
+      model = showcase(list, 1, -0.6, anim);
     }
     if (model) {
       model.scale.multiplyScalar(1.45);

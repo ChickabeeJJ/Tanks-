@@ -352,6 +352,12 @@ export class Arena {
     Audio.click();
   }
 
+  // hide 'Recover Last' for this life (the saved build stays for the next death screen)
+  dismissRecover() {
+    this.recoverUsed = true;
+    this.G.hud.setRecover(false);
+  }
+
   // restore the tank + stat points you had when you last died
   recoverLast() {
     const lb = profile.d.lastBuild;

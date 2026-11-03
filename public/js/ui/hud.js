@@ -30,7 +30,7 @@ export function createHUD(G) {
     <div id="xpgain"></div>
   </div>
   <div id="teamscore" class="hidden"></div>
-  <div class="rbtn wbtn yellow hidden" id="b-recover" title="Restore the tank and stats you had when you died">${ic('reload', 26).replace(' filter="url(#icol)"', '')}<span class="lbl">Recover Last</span></div>
+  <div class="rbtn wbtn yellow hidden" id="b-recover" title="Restore the tank and stats you had when you died">${ic('reload', 26).replace(' filter="url(#icol)"', '')}<span class="lbl">Recover Last</span><span class="rec-x" title="Dismiss">${ic('x', 14).replace(' filter="url(#icol)"', '')}</span></div>
   <div id="qpanel" class="hidden"></div>
   <div id="epanel" class="hidden"></div>
   <div id="left">
@@ -89,7 +89,10 @@ export function createHUD(G) {
   click('#b-quest', () => G.menus.open('quests'));
   click('#b-rank', () => G.menus.open('rank'));
   click('#xpad', () => G.claimXp());
-  click('#b-recover', () => G.arena && G.arena.recoverLast());
+  click('#b-recover', (e) => {
+    if (e.target.closest('.rec-x')) { G.arena && G.arena.dismissRecover(); return; } // little red X: cancel
+    G.arena && G.arena.recoverLast();
+  });
   // free XP cooldown: dimmed button, draining fill and a mm:ss countdown until it is ready again
   setInterval(() => {
     const btn = $('#xpad', root);
