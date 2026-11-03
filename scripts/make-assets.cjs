@@ -43,7 +43,7 @@ async function stage(page, opts = {}) {
     tough(me);
     me.x = 0; me.z = 0;
     // big shapes out of the way
-    for (const s of w.shapes.values()) if ((s.type === 'hex' || s.type === 'alpha') && Math.hypot(s.x, s.z) < 80) { s.x += Math.sign(s.x || 1) * 90; s.z += Math.sign(s.z || 1) * 90; }
+    for (const s of w.shapes.values()) if ((s.type === 'hex' || s.type === 'alpha') && Math.hypot(s.x, s.z) < 160) { const a = Math.atan2(s.z, s.x); s.x = Math.cos(a) * 170; s.z = Math.abs(Math.sin(a)) * 170; } // behind the start, out of the camera's path
     const bots = [...w.tanks.values()].filter((t) => t !== me && t.isBot);
     // [x, z, tank, skin, aim target x, z]
     const P = o.pose || [
@@ -130,39 +130,73 @@ async function covers(browser) {
   }
 }
 
+// Virtual clock injected into the page: performance.now / Date.now / requestAnimationFrame only move
+// when we step them, so every video frame is exactly 1/30 s of game time, however slow rendering is.
+const VCLOCK = () => {
+  const realNow = performance.now.bind(performance);
+  const off = Date.now() - realNow();
+  const c = { t: realNow(), cbs: [] };
+  window.__vclock = c;
+  performance.now = () => c.t;
+  Date.now = () => Math.round(off + c.t);
+  window.requestAnimationFrame = (cb) => { c.cbs.push(cb); return c.cbs.length; };
+  window.__vstep = (ms) => { c.t += ms; const list = c.cbs; c.cbs = []; for (const f of list) { try { f(c.t); } catch (e) { console.error(e); } } };
+  // real-time pump while the game boots; stopped once recording starts
+  window.__vpump = setInterval(() => window.__vstep(16), 16);
+};
+
 async function video(browser, portrait) {
-  const W = portrait ? 720 : 1280, H = portrait ? 1080 : 720, DSF = 1.5;
-  const page = await open(browser, W, H, DSF);
-  await page.clock.install();
-  // boot with virtual time: advance the fake clock until each step is ready
-  const until = async (fn) => {
-    for (let i = 0; i < 600; i++) { if (await page.evaluate(fn)) return; await page.clock.runFor(100); }
-    throw new Error('timed out waiting for ' + fn);
-  };
-  await page.goto(URL0, { waitUntil: 'domcontentloaded' });
-  await until(() => !!(window.__tanks && window.__tanks.state === 'lobby'));
-  await page.evaluate(() => window.__tanks.play('ffa'));
-  await until(() => !!(window.__tanks.arena && window.__tanks.arena.alive));
-  await stage(page, { zoom: portrait ? 0.95 : 0.8, pitch: 0.62, yaw: 0.3 });
+  // rendered at 720p and upscaled (swiftshader is slow); the HUD stays crisp enough at this scale
+  const W = portrait ? 720 : 1280, H = portrait ? 1080 : 720;
+  const page = await open(browser, W, H, 1);
+  await page.addInitScript(VCLOCK);
+  await bootArena(page);
+  await stage(page, { zoom: portrait ? 0.9 : 0.75, pitch: 0.6, yaw: 0 });
+  await page.evaluate(() => { const G = window.__tanks, w = G.arena.conn.world, me = w.tanks.get(G.arena.conn.me.id); me.x = 0; me.z = 8; G.arena.pred.x = 0; G.arena.pred.z = 8; });
   await page.addStyleTag({ content: '.tut, #touch, #toasts { display: none !important; }' });
-  await page.clock.runFor(1500);
+  await page.waitForTimeout(1500);
+  await page.evaluate(() => clearInterval(window.__vpump));
   const frames = path.join(OUT, portrait ? 'frames-p' : 'frames-l');
   fs.rmSync(frames, { recursive: true, force: true });
   fs.mkdirSync(frames, { recursive: true });
-  const FPS = 30, SEC = 18;
+  const FPS = 30, SEC = +(process.env.SEC || 18);
   for (let f = 0; f < FPS * SEC; f++) {
     const t = f / FPS;
-    await page.evaluate(([t]) => {
+    await page.evaluate(([t, dt]) => {
       const G = window.__tanks, I = window.__tanks_input;
-      // drive forward while slowly circling; aim a bit ahead of the tank
-      I.keys.add('KeyW');
-      if (t > 6 && t < 9) I.keys.add('KeyD'); else I.keys.delete('KeyD');
-      G.camRig.yaw += 0.0035;
-      I.mouse.nx = Math.sin(t * 0.9) * 0.25; I.mouse.ny = 0.12 + Math.cos(t * 0.7) * 0.1;
+      // circle-strafe around the fight: camera always looks at the battle's centre, the tank strafes sideways
+      const A = G.arena, px = A.pred.x, pz = A.pred.z, cx = 0, cz = -14, R = 22;
+      const dx = cx - px, dz = cz - pz, d = Math.hypot(dx, dz) || 1;
+      const want = Math.atan2(-dx, -dz);
+      const dy = ((want - G.camRig.yaw + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      G.camRig.yaw += dy * 0.12;
+      I.keys.add('KeyD');
+      if (d > R + 2) { I.keys.add('KeyW'); I.keys.delete('KeyS'); } else if (d < R - 2) { I.keys.add('KeyS'); I.keys.delete('KeyW'); } else { I.keys.delete('KeyW'); I.keys.delete('KeyS'); }
+      I.mouse.nx = Math.sin(t * 1.1) * 0.12; I.mouse.ny = 0.22; // aim at the fight
+      // keep the fight together: bots drift back toward the centre, shapes are topped up on the far side
+      {
+        const w = A.conn.world;
+        for (const o of w.tanks.values()) {
+          if (!o.isBot) continue;
+          o.hp = Math.max(o.hp, o.d.maxHp * 0.5);
+          const ox = cx - o.x, oz = cz - o.z, od = Math.hypot(ox, oz);
+          if (od > 18) { o.x += (ox / od) * 0.35; o.z += (oz / od) * 0.35; }
+        }
+        if (Math.round(t * 30) % 45 === 0) {
+          let k = 0;
+          const fx = cx - (dx / d) * 14, fz = cz - (dz / d) * 14; // beyond the centre, away from the camera
+          for (const sh of w.shapes.values()) {
+            if (k >= 5 || sh.type === 'hex' || sh.type === 'alpha') continue;
+            if (Math.hypot(sh.x - cx, sh.z - cz) < 70) continue;
+            sh.x = fx + (Math.random() - 0.5) * 22; sh.z = fz + (Math.random() - 0.5) * 22; k++;
+          }
+        }
+      }
       // show an evolution moment
       if (Math.abs(t - 10) < 0.02) { const w = G.arena.conn.world, me = w.tanks.get(G.arena.conn.me.id); me.tankId = 'fiveway'; w.recalc(me); me.d.maxHp = 1e7; me.hp = 1e7; me.infoVer++; w.fx.push({ tick: w.tick, d: [4, me.x, me.z, me.id] }); }
-    }, [t]);
-    await page.clock.runFor(1000 / FPS);
+      window.__vstep(dt);
+    }, [t, 1000 / FPS]);
+    await page.waitForTimeout(40); // let the local server's interval catch up with the virtual time
     await page.screenshot({ path: path.join(frames, String(f).padStart(4, '0') + '.png') });
     if (f % 60 === 0) console.log(`frame ${f}/${FPS * SEC}`);
   }
