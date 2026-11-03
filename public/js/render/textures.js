@@ -305,10 +305,10 @@ export function textCanvas(text, o = {}) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.lineJoin = 'round';
-  if (o.stroke !== false) {
-    ctx.lineWidth = size * 0.16;
-    ctx.strokeStyle = o.strokeColor || 'rgba(20,30,50,0.85)';
-    ctx.strokeText(text, c.width / 2, c.height / 2 + size * 0.04);
+  if (o.stroke !== false) { // soft drop shadow for readability (no outline around the letters)
+    ctx.shadowColor = o.strokeColor || 'rgba(20,30,50,0.75)';
+    ctx.shadowBlur = size * 0.12;
+    ctx.shadowOffsetY = size * 0.06;
   }
   ctx.fillStyle = o.color || '#ffffff';
   ctx.fillText(text, c.width / 2, c.height / 2 + size * 0.04);

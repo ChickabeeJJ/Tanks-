@@ -105,7 +105,27 @@ export function createMenus(G) {
     modal({
       title: 'Store', icon: 'basket', wide: true,
       tabs: [{ id: 'pack', label: 'Daily', icon: 'gift' }, { id: 'gems', label: 'Gems', icon: 'gem' }, { id: 'shop', label: 'Shop', icon: 'basket' }], tab: tab || 'pack',
-      tick: (st) => { if (st.tab !== 'shop') st.redraw(); },
+      // update only the countdown texts each second (a full redraw restarted every animation)
+      tick: (st) => {
+        const d = profile.d;
+        if (st.tab === 'pack') {
+          const btn = st.el.querySelector('.sp-claim');
+          const claimed = d.store.starterDay === dayId();
+          if (btn && claimed && btn.classList.contains('gray')) btn.innerHTML = `${ic('clock', 22)} ${timeLeft(untilTomorrow())}`;
+          else if (btn && claimed !== btn.classList.contains('gray')) st.redraw(); // a new day began
+        } else if (st.tab === 'gems') {
+          let changed = false;
+          st.el.querySelectorAll('.sg-card').forEach((c, i) => {
+            const p = STORE_GEMS[i], left = d.store.gemsAt[i] - Date.now();
+            if ((left > 0) !== c.classList.contains('cool')) { changed = true; return; }
+            if (left > 0) { c.querySelector('.sg-btn').textContent = timeLeft(left); c.querySelector('.sg-cd i').style.width = (100 - (left / (p.cd * 1000)) * 100) + '%'; }
+          });
+          if (changed) st.redraw();
+        } else {
+          const r = st.el.querySelector('.sto-reset');
+          if (r) r.innerHTML = `${ic('clock', 16)} New deals in ${timeLeft(untilTomorrow())}`;
+        }
+      },
       render(b, st) {
         const d = profile.d;
         b.appendChild(h(`<div class="sto-bal"><span>Your gems</span>${ic('gem', 24)}<b class="lbl">${fmtFull(d.gems)}</b></div>`));
@@ -363,7 +383,7 @@ export function createMenus(G) {
       <path d="M32 3l26 9v19c0 17-11 29-26 36C17 60 6 48 6 31V12z" fill="#16233f"/>
       <path d="M32 8l21 7.5v15.5c0 14-9 24-21 30C20 55 11 45 11 31V15.5z" fill="url(#${id})"/>
       <path d="M32 8l21 7.5v15.5c0 14-9 24-21 30z" fill="#000" opacity=".12"/>
-      <text x="32" y="44" text-anchor="middle" font-size="${idx >= 10 ? 22 : 26}" font-family="inherit" font-weight="900" fill="#fff" stroke="#16233f" stroke-width="4" paint-order="stroke">${idx}</text></svg>`;
+      <text x="32" y="44" text-anchor="middle" font-size="${idx >= 10 ? 22 : 26}" font-family="inherit" font-weight="900" fill="#16233f">${idx}</text></svg>`;
   }
   const TASK_ICONS = { tomorrow: 'calendar', play5: 'clock', ad: 'wheel', kill: 'skull' };
 
@@ -643,7 +663,7 @@ export function createMenus(G) {
       const label = sg.tank ? TANKS[sg.tank].name : '+' + segValue(sg);
       const fit = label.length > 6 ? 'textLength="54" lengthAdjust="spacingAndGlyphs"' : ''; // long tank names squeezed to the slice width
       deco += `<text x="${tx}" y="${ty}" transform="rotate(${mid} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle" ${fit}
-        font-family="Fredoka, sans-serif" font-weight="700" font-size="${sg.tank ? 13 : 15}" fill="#fff" stroke="${shade(sg.color, 0.45)}" stroke-width="4" paint-order="stroke">${label}</text>`;
+        font-family="Fredoka, sans-serif" font-weight="700" font-size="${sg.tank ? 13 : 15}" fill="#fff" style="filter:drop-shadow(0 1.5px 0 ${shade(sg.color, 0.45)})">${label}</text>`;
       deco += icon;
     });
     let bulbs = '';

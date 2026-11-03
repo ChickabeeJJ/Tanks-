@@ -1099,3 +1099,27 @@ body.touch.in-arena #left, body.touch.in-arena #right { display: none !important
 
 /* XP stars and gems: extra vivid everywhere */
 svg.ic:has(path[fill="#ffc400"]), svg.ic:has(path[fill="#00c8ff"]) { filter: saturate(1.5) contrast(1.08); }
+
+/* ================================================================ text without outlines
+   All the 'stroke' text used fake outlines (eight text-shadows) that got clipped at box edges.
+   They are replaced by a single soft drop shadow in the element's own dark shade: no border, no cut-off. */
+.lbl, .stroke, .stroke-s, .btn, .task, .task *, .rbtn .key, .badge, #d-re, .gift.ready .amt,
+.sp-ribbon, .si-off, .sg-best, .rk-tier, .tsh-cls, .ev-tag, .bt-forever, #tr .cap .b1, #tr .ttl .t2 {
+  text-shadow: 0 2px 0 color-mix(in srgb, var(--o, #0f2a4d) 55%, transparent), 0 1px 3px rgba(0,0,0,.18) !important;
+  -webkit-text-stroke: 0 !important;
+}
+/* text on light surfaces is dark now that it has no outline; text on coloured surfaces stays white */
+:root { --txt: #16335e; }
+.modal .mbody .lbl, .modal .mbody .stroke, .modal .mbody .stroke-s, .modal .mbody .big, #xpbar .txt { color: var(--txt); text-shadow: none !important; }
+.modal .mbody :is(.btn, .task, .gift, .rk-hero, .tsh-hero, .bt-hero, .ev-hero, .sto-pack, .cs-stage, .rv, .dth-head, .rk-bar, .sto-bal, .tsr,
+  .sp-ribbon, .si-off, .sg-best, .tsh-cls, .ev-tag, .bt-forever, .tcd-cls, .ts, .rl-item, .card.sel, .box[style*="gradient"]) :is(.lbl, .stroke, .stroke-s, .big),
+.modal .mbody :is(.btn, .task, .sp-ribbon, .si-off, .sg-best, .tsh-cls, .ev-tag, .bt-forever).lbl,
+.modal .mbody .sp-title, .modal .mbody .sp-plus { color: #fff; text-shadow: 0 2px 0 color-mix(in srgb, var(--o, #0f2a4d) 55%, transparent) !important; }
+/* coloured amounts on white cards: deeper tones so they read without an outline */
+.sp-item.xp .sp-amt, .rt-pts, .es-amt { color: #e07b00 !important; }
+.sp-item.gem .sp-amt, .sg-amt { color: #0a7fd6 !important; }
+.rk-tier { color: var(--tc) !important; }
+.bt-price .bad b { color: #d61f33 !important; }
+.ev-prize .lbl { color: #ffe15a !important; }
+.modal .mbody :is(.up-head, .up-bal) :is(.lbl, .up-h1), .modal .mbody .up-h1 { color: #fff !important; text-shadow: 0 2px 0 rgba(11,26,51,.45) !important; }
+.btn.gray { background: linear-gradient(180deg, #a3afbd, #7e8b9b 55%, #6b7787); --o: #3e4856; color: #fff; }
