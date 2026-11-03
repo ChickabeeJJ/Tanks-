@@ -728,6 +728,8 @@ export class World {
           if (e.shieldUntil > now) { bl.hp = 0; continue; }
           this.damageTank(e, bl.dmg, bl.owner);
           bl.hp -= e.d.bodyRes;
+          // white impact puff where the bullet hits the tank (same as bullet-vs-bullet)
+          if (bl.k !== 'flame') this.fx.push({ tick: this.tick, d: [FX.HIT, r1(bl.x), r1(bl.z), r2(bl.r * 0.9)] });
           const sp = Math.hypot(bl.vx, bl.vz) || 1;
           if (bl.k !== 'flame') { e.vx += (bl.vx / sp) * 1.2 * bl.r; e.vz += (bl.vz / sp) * 1.2 * bl.r; }
           if (bl.k === 'freeze') e.slowUntil = now + 1.6;

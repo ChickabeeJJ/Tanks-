@@ -12,9 +12,9 @@ const P = {
   box: `<path d="M32 8l22 10v26L32 56 10 44V18z" fill="#ff9a2e"/><path d="M32 28v28L10 44V18z" fill="#e8801c"/><path d="M32 8l22 10-22 10-22-10z" fill="#ffc06a"/>`,
   gift: `<rect x="8" y="26" width="48" height="30" rx="3" fill="#ff4d4d"/><rect x="5" y="18" width="54" height="12" rx="3" fill="#ff7373"/>
     <path d="M28 18h8v38h-8z" fill="#ffd21f"/><path d="M32 18c-8-12-20-8-14 0zM32 18c8-12 20-8 14 0z" fill="#ffd21f"/>`,
-  clipboard: `<rect x="12" y="10" width="40" height="48" rx="5" fill="#ffffff"/><rect x="22" y="5" width="20" height="10" rx="3" fill="#b9c7d8"/>
-    <path d="M20 26h24M20 35h24M20 44h16" ${L('#8fa3bd', 4)}/>`,
-  shield: `<path d="M32 5l22 8v16c0 14-9 24-22 30C19 53 10 43 10 29V13z" fill="#cfd9e6"/><path d="M32 13l14 5v11c0 9-6 16-14 20z" fill="#e8eef6"/><path d="M26 28l6 10 8-14" ${L('#7f93ad', 4)}/>`,
+  clipboard: `<rect x="12" y="10" width="40" height="48" rx="5" fill="#ffffff"/><rect x="22" y="5" width="20" height="10" rx="3" fill="#ff9f1a"/>
+    <path d="M20 26h24M20 35h24M20 44h16" ${L('#2f8fe0', 4)}/>`,
+  shield: `<path d="M32 5l22 8v16c0 14-9 24-22 30C19 53 10 43 10 29V13z" fill="#9fd0ff"/><path d="M32 13l14 5v11c0 9-6 16-14 20z" fill="#d8eeff"/><path d="M26 28l6 10 8-14" ${L('#1f7fd6', 4)}/>`,
   star: `<path d="M32 4l8.5 17.5L60 24l-14 13.5L49.5 57 32 47.5 14.5 57 18 37.5 4 24l19.5-2.5z" fill="#ffd21f"/><path d="M32 13l5 10 10 1.5" ${L('#fff6b0', 3.5)}/>`,
   gem: `<path d="M16 8h32l12 16-28 34L4 24z" fill="#3fd0ff"/><path d="M4 24h56L32 58z" fill="#1fb4ec"/><path d="M18 24l6-16h16l6 16z" fill="#a8ecff"/>`,
   plus: `<path d="M26 8h12v18h18v12H38v18H26V38H8V26h18z" fill="#ffffff"/>`,
