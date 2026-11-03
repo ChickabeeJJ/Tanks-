@@ -211,6 +211,8 @@ export class Lobby {
     else Input.consumeLock();
     const wh = Input.consumeWheel();
     if (wh) rig.zoom = Math.max(0.55, Math.min(3.2, rig.zoom * (wh > 0 ? 1.1 : 0.9)));
+    const pinch = Input.consumePinch(); // mobile pinch: fingers apart = zoom in (closer camera)
+    if (pinch !== 1) rig.zoom = Math.max(0.55, Math.min(3.2, rig.zoom / pinch));
 
     const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
     const fw = rig.forward(), rt = rig.right();

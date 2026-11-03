@@ -83,6 +83,8 @@ export const Input = {
   exitLock() { if (document.pointerLockElement) document.exitPointerLock(); },
 
   consumeWheel() { const w = this.wheel; this.wheel = 0; return w; },
+  pinch: 1, // touch pinch: multiplicative zoom since last frame (>1 = fingers apart = zoom in)
+  consumePinch() { const k = this.pinch; this.pinch = 1; return k; },
   consumeYaw() { const y = this.dragYaw; this.dragYaw = 0; return y; },
   consumePitch() { const y = this.dragPitch; this.dragPitch = 0; return y; },
   consumeLock() { const y = this.lockDX; this.lockDX = 0; return y; },
@@ -158,11 +160,21 @@ export const Input = {
         if (!a) continue;
         used = true;
         if (a.kind === 'cam') {
-          this.dragYaw += (t.clientX - a.lx) * 1.4;
-          this.dragPitch += (t.clientY - a.ly) * 1.4;
+          const cams = Object.values(active).filter((x) => x.kind === 'cam');
+          if (cams.length < 2) { // one finger: turn and tilt
+            this.dragYaw += (t.clientX - a.lx) * 1.4;
+            this.dragPitch += (t.clientY - a.ly) * 1.4;
+          }
           a.lx = t.clientX; a.ly = t.clientY;
         } else move(a, t);
       }
+      // two fingers on empty screen: pinch to zoom
+      const cams = Object.values(active).filter((x) => x.kind === 'cam');
+      if (cams.length >= 2) {
+        const d = Math.hypot(cams[0].lx - cams[1].lx, cams[0].ly - cams[1].ly);
+        if (this.pinchD) this.pinch *= d / this.pinchD;
+        this.pinchD = d;
+      } else this.pinchD = 0;
       if (used) e.preventDefault();
     }, { passive: false });
     const end = (e) => {
@@ -170,7 +182,7 @@ export const Input = {
         const a = active[t.identifier];
         if (!a) continue;
         delete active[t.identifier];
-        if (a.kind === 'cam') continue;
+        if (a.kind === 'cam') { this.pinchD = 0; continue; }
         const st = stateOf(a.kind);
         st.active = false; st.x = st.y = st.mag = 0;
         sticks[a.kind].base.classList.remove('on');
