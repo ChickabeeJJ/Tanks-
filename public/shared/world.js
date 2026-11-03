@@ -474,7 +474,8 @@ export class World {
       id, kind: 'bullet', k: b.kind, ki: BULLET_KINDS.indexOf(b.kind), owner: t.id, team: t.team,
       x, z, px: x, pz: z, vx: Math.cos(a) * spd, vz: Math.sin(a) * spd,
       r: 0.5 * b.w * b.bs * size * 0.95, r0: 0, dmg: 9 * b.dmg * t.d.dmgMul, hp: 9 * b.pen * t.d.penMul,
-      life: 1.4 * b.life, age: 0, gen: 0, shielded: t.shieldUntil > this.time, ang: 0, bs: b.bs,
+      // flamethrowers: Bullet Health also stretches the flame's reach (+9% range per point)
+      life: 1.4 * b.life * (b.kind === 'flame' ? 1 + 0.09 * t.stats[1] : 1), age: 0, gen: 0, shielded: t.shieldUntil > this.time, ang: 0, bs: b.bs,
     };
     bl.r0 = bl.r;
     this.bullets.set(id, bl);

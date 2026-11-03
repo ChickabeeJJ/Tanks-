@@ -1240,7 +1240,7 @@ export function createMenus(G) {
             <div class="dth-stat" style="--c:#3fd34a">${ic('statup', 30)}<b class="lbl">${profile.level}</b><span>Your level</span></div>
           </div>
           <div class="dth-tip">${ic('book', 20)} <b>Tip:</b> ${tip}</div>
-          <div class="dth-btns"><button class="btn" id="d-lobby">${ic('door', 24)} Lobby</button><button class="btn green" id="d-re">${ic('spin', 26)} Respawn</button></div>
+          <div class="dth-btns"><button class="btn" id="d-lobby">${ic('door', 24)} Lobby</button><button class="btn green" id="d-re">${ic('spin', 26).replace(' filter="url(#icol)"', '')} Respawn</button></div>
         </div>`);
         el.querySelector('#d-re').onclick = () => { info.handled = true; close(); onRespawn(); };
         el.querySelector('#d-lobby').onclick = () => { info.handled = true; close(); onLobby(); };
