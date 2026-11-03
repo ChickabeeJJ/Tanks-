@@ -9,6 +9,7 @@ import { createMenus } from './ui/menus.js';
 import { Arena } from './game.js';
 import { Lobby } from './lobby.js';
 import { Tutorial } from './tutorial.js';
+import { createParty } from './party.js';
 import { resolveServer, apiBase, localServer, wakeServer } from './net.js';
 import { MODES } from '../shared/config.js';
 import { cleanName, cleanChat } from '../shared/filter.js';
@@ -43,7 +44,7 @@ G.netLabel = () => {
 };
 
 // ------------------------------------------------------------------ state changes
-G.play = async (mode, roomId) => {
+G.play = async (mode, roomId, team) => {
   const m = MODES[mode] || MODES.ffa;
   if (m.minLevel && profile.level < m.minLevel) { G.hud.toast(`Reach Level ${m.minLevel} to play ${m.name}!`, 'red'); return; }
   if (G.state === 'arena') G.arena.stop();
@@ -54,7 +55,8 @@ G.play = async (mode, roomId) => {
   Input.touchMode = 'arena';
   G.arena = new Arena(G);
   G.hud.big('Joining...', 1200);
-  await G.arena.start(m.id, roomId);
+  await G.arena.start(m.id, roomId, team);
+  if (G.party) G.party.syncInvite();
   if (G.tut) G.tut.enterArena();
 };
 
@@ -67,6 +69,7 @@ G.toLobby = async (skipAd) => {
   G.lobby = new Lobby(G);
   G.lobby.start();
   if (G.tut) G.tut.enterLobby();
+  if (G.party) G.party.syncInvite();
   SDK.gameplayStop();
 };
 
@@ -93,12 +96,8 @@ G.claimXp = () => {
   Audio.reward();
 };
 
-G.invite = async () => {
-  const params = G.arena && G.arena.online ? { room: G.arena.roomId, mode: G.arena.mode } : { mode: G.arena ? G.arena.mode : 'ffa' };
-  const link = SDK.inviteLink(params);
-  try { await navigator.clipboard.writeText(link); G.hud.toast('Invite link copied!', 'blue'); } catch { G.hud.toast('Share this page link with your friends!', 'blue'); }
-  if (!profile.d.rank.invite) { profile.d.rank.invite = 1; profile.save(); }
-};
+// the people button opens the Party menu (codes, members, CrazyGames invite button)
+G.invite = () => G.menus.open('party');
 
 G.sendChat = (msg) => {
   msg = cleanChat(msg);
@@ -170,6 +169,16 @@ async function boot() {
   G.hud = createHUD(G);
   G.menus = createMenus(G);
   G.tut = new Tutorial(G);
+  G.party = createParty(G);
+  // party size bubble on the people button
+  G.party.on(() => {
+    const btn = document.getElementById('b-invite');
+    if (!btn) return;
+    let bd = btn.querySelector('.pbadge');
+    if (!G.party.state) { if (bd) bd.remove(); return; }
+    if (!bd) { bd = document.createElement('span'); bd.className = 'pbadge'; btn.appendChild(bd); }
+    bd.textContent = G.party.size;
+  });
   let refreshQueued = false;
   profile.on((what) => {
     if (what === 'owned') G.onOwnedChanged();
@@ -187,12 +196,21 @@ async function boot() {
   SDK.loadingStop();
   window.addEventListener('pointerdown', () => Audio.unlock(), { once: true });
   window.addEventListener('beforeunload', () => profile.saveNow());
+  window.addEventListener('pagehide', () => SDK.leftRoom());
   document.addEventListener('visibilitychange', () => { if (document.hidden) profile.saveNow(); });
 
   const room = SDK.getInviteParam('room');
   const mode = SDK.getInviteParam('mode');
-  if (room || (SDK.instantMultiplayer && G.api)) G.play(MODES[mode] ? mode : 'ffa', room || undefined);
+  const partyCode = SDK.getInviteParam('party');
+  if (room) G.play(MODES[mode] ? mode : 'ffa', room); // invited straight into a friend's match
   else G.toLobby(true);
+  if (partyCode) { G.party.join(partyCode); G.menus.open('party'); } // invited to a party
+  else if (SDK.instantMultiplayer) { G.party.create(); G.menus.open('party'); } // CrazyGames instant multiplayer: open a party right away
+  // a friend's invite accepted while the game is already open (CrazyGames 'join room' listener)
+  SDK.onJoinRoom((params) => {
+    if (params.party) { G.party.join(params.party); G.menus.open('party'); }
+    if (params.room) G.play(MODES[params.mode] ? params.mode : 'ffa', params.room);
+  });
 
   let last = performance.now();
   function frame(now) {

@@ -2,7 +2,7 @@
 import { profile, QUESTS, GIFTS, WHEEL, CHESTS, STORE_GEMS, RANK_TASKS, RANK_TIERS, RANK_COLORS, rankTier, rankNeed, MAX_RANK, capPrice, boostPrice, dayId } from '../profile.js';
 import { TANK_LIST, TANKS, childrenOf, pathTo } from '../../shared/tanks.js';
 import { SKINS, SKIN_MAP, RARITY } from '../../shared/skins.js';
-import { STATS, BASE_CAP, MAX_CAP, MODES } from '../../shared/config.js';
+import { STATS, BASE_CAP, MAX_CAP, MODES, partyCap } from '../../shared/config.js';
 import { fmt, fmtFull } from '../../shared/progression.js';
 import { skinPreview } from '../render/textures.js';
 import { tankIcon } from '../render/thumbs.js';
@@ -1314,9 +1314,125 @@ export function createMenus(G) {
     });
   }
 
+  // ------------------------------------------------------------------ party (play with friends)
+  const MODE_LOOK = {
+    ffa: { c1: '#ff2d7a', c2: '#ff8fb8', sub: 'Free for all' },
+    teams: { c1: '#ff3048', c2: '#2f9dff', sub: '2 teams' },
+    four: { c1: '#ffcc1a', c2: '#3ee06a', sub: '4 teams' },
+  };
+  function party() {
+    const P = G.party;
+    let off = null;
+    modal({
+      title: 'Party', icon: 'people', wide: true,
+      onClose: () => { if (off) off(); P.menuOpen = false; P.syncInvite(); },
+      render(b, st) {
+        P.menuOpen = true;
+        if (!off) off = P.on(() => { if (current === st) { const f = st.el.querySelector('.pt-code-in'); const v = f && f.value; st.redraw(); const nf = st.el.querySelector('.pt-code-in'); if (nf && v) nf.value = v; } });
+        const root = h('<div class="pt"></div>');
+        b.appendChild(root);
+        if (P.status === 'connecting' && !P.state) {
+          root.appendChild(h(`<div class="pt-wait"><div class="pt-spin"></div><div class="lbl">Connecting to the party server...</div></div>`));
+          return;
+        }
+        if (!P.state) {
+          const offline = P.status === 'offline';
+          root.appendChild(h(`<div class="pt-hero">
+            <div class="pt-hero-ic">${ic('people', 64)}</div>
+            <div><div class="pt-h1 lbl">Play with friends</div>
+            <div class="pt-h2">Create a party, share its code and jump into battles together. Team modes put the whole party on the same team.</div></div></div>`));
+          if (offline) root.appendChild(h(`<div class="pt-note">${ic('x', 16)} Parties need the online game server, which isn't reachable right now. You can still play with bots.</div>`));
+          const row = h(`<div class="pt-start">
+            <div class="pt-card create"><div class="pt-card-ic">${ic('crown', 46)}</div><div class="pt-card-t lbl">Create a Party</div>
+              <div class="pt-card-s">You lead: pick the mode and start the match.</div>
+              <button class="btn green pt-create" ${offline ? 'disabled' : ''}>${ic('plus', 20)} Create Party</button></div>
+            <div class="pt-card join"><div class="pt-card-ic">${ic('door', 46)}</div><div class="pt-card-t lbl">Join a Party</div>
+              <div class="pt-card-s">Enter the 5-letter code from your friend.</div>
+              <input class="pt-code-in" maxlength="5" placeholder="CODE" autocomplete="off" spellcheck="false">
+              <button class="btn pt-join" ${offline ? 'disabled' : ''}>Join</button></div></div>`);
+          root.appendChild(row);
+          if (P.error) root.appendChild(h(`<div class="pt-err">${esc(P.error)}</div>`));
+          const inp = row.querySelector('.pt-code-in');
+          inp.addEventListener('input', () => { inp.value = inp.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5); });
+          inp.addEventListener('keydown', (e) => { e.stopPropagation(); if (e.key === 'Enter') row.querySelector('.pt-join').click(); });
+          row.querySelector('.pt-create').onclick = () => { Audio.click(); P.create(); };
+          row.querySelector('.pt-join').onclick = () => {
+            const code = inp.value.trim();
+            if (code.length < 5) { Audio.error(); inp.classList.remove('nope'); void inp.offsetWidth; inp.classList.add('nope'); return; }
+            Audio.click(); P.join(code);
+          };
+          return;
+        }
+        // ---- in a party
+        const S = P.state, leader = P.isLeader, n = S.members.length;
+        const sdkBtn = SDK.available; // on CrazyGames their own Invite button shows while this menu is open
+        const top = h(`<div class="pt-top">
+          <div class="pt-codebox"><div class="pt-cl">Party code</div>
+            <div class="pt-tiles">${S.code.split('').map((ch, i) => `<span style="animation-delay:${i * 0.05}s">${ch}</span>`).join('')}</div></div>
+          <div class="pt-invite">
+            <div class="pt-ih lbl">Invite friends</div>
+            <div class="pt-is">${sdkBtn ? 'Use the <b>Invite</b> button from CrazyGames, or share the code.' : 'Send them the link, or share the code.'}</div>
+            <div class="pt-ib">
+              <button class="btn pt-copy">${ic('copy', 20)} Copy code</button>
+              ${sdkBtn ? '' : `<button class="btn yellow pt-link">${ic('people', 20)} Copy invite link</button>`}</div></div></div>`);
+        root.appendChild(top);
+        top.querySelector('.pt-copy').onclick = async () => { try { await navigator.clipboard.writeText(S.code); } catch { /* */ } Audio.click(); G.hud.toast(`Code ${S.code} copied!`, 'blue'); };
+        const lk = top.querySelector('.pt-link');
+        if (lk) lk.onclick = async () => { try { await navigator.clipboard.writeText(P.inviteLink()); } catch { /* */ } Audio.click(); G.hud.toast('Invite link copied!', 'blue'); };
+        // members
+        const mem = h(`<div class="pt-sec lbl">Players <span>${n} / ${S.max}</span></div>`);
+        root.appendChild(mem);
+        const grid = h('<div class="pt-members"></div>');
+        for (let i = 0; i < S.max; i++) {
+          const m = S.members[i];
+          if (!m) { grid.appendChild(h(`<div class="pt-m empty"><div class="pt-av">${ic('plus', 22)}</div><div class="pt-mn">Invite</div></div>`)); continue; }
+          const isLead = m.id === S.leader, isMe = m.id === S.you;
+          const c = h(`<div class="pt-m ${isMe ? 'me' : ''}" style="animation-delay:${i * 0.03}s">
+            ${isLead ? `<span class="pt-crown">${ic('crown', 22)}</span>` : ''}
+            ${leader && !isMe ? `<span class="pt-kick" title="Remove">${ic('x', 12)}</span>` : ''}
+            <div class="pt-av"><img src="${skinPreview(m.skin, 64)}" alt=""></div>
+            <div class="pt-mn">${esc(m.name)}</div><div class="pt-ml">Lv ${m.level}${isMe ? ' · You' : ''}</div></div>`);
+          const k = c.querySelector('.pt-kick');
+          if (k) k.onclick = () => { Audio.click(); P.kick(m.id); };
+          grid.appendChild(c);
+        }
+        root.appendChild(grid);
+        // mode picker
+        root.appendChild(h(`<div class="pt-sec lbl">Game mode <span>${leader ? 'Pick where to play' : 'Chosen by the leader'}</span></div>`));
+        const modes = h('<div class="pt-modes"></div>');
+        for (const id of Object.keys(MODES)) {
+          const md = MODES[id], look = MODE_LOOK[id] || MODE_LOOK.ffa, cap = partyCap(id), fits = n <= cap, sel = S.mode === id;
+          const c = h(`<div class="pt-mode ${sel ? 'sel' : ''} ${fits ? '' : 'full'} ${leader ? 'can' : ''}" style="--c1:${look.c1};--c2:${look.c2}">
+            <div class="pt-arch"></div>
+            <div class="pt-mt lbl">${md.name}</div><div class="pt-ms">${look.sub}</div>
+            <div class="pt-cap"><i style="width:${Math.min(100, (n / cap) * 100)}%"></i><span>${n} / ${cap} ${md.teams ? 'per team' : 'players'}</span></div>
+            ${fits ? '' : `<div class="pt-full">${ic('lock', 18)} Party too big<br><small>max ${cap}${md.teams ? ' per team' : ''}</small></div>`}
+            ${sel ? `<span class="pt-check">${ic('check', 16)}</span>` : ''}</div>`);
+          if (leader) c.onclick = () => { if (!fits) { Audio.error(); G.hud.toast(`Party of ${n} exceeds ${md.name}'s capacity (max ${cap})`, 'red', 3000); return; } Audio.click(); P.setMode(id); };
+          modes.appendChild(c);
+        }
+        root.appendChild(modes);
+        // footer
+        const fitsSel = P.fits(S.mode);
+        const foot = h(`<div class="pt-foot">
+          <button class="btn red pt-leave">${ic('door', 20)} Leave</button>
+          ${leader
+            ? `<button class="btn green pt-go" ${fitsSel ? '' : 'disabled'}>${ic('play', 24)} Start ${MODES[S.mode].name}</button>`
+            : `<div class="pt-waiting"><span class="lbl">Waiting for the leader</span><i></i><i></i><i></i></div>`}</div>`);
+        root.appendChild(foot);
+        foot.querySelector('.pt-leave').onclick = () => { Audio.click(); P.leave(); };
+        const go = foot.querySelector('.pt-go');
+        if (go) go.onclick = () => { Audio.click(); P.start(); };
+        if (P.error) root.appendChild(h(`<div class="pt-err">${esc(P.error)}</div>`));
+      },
+    });
+    if (!P.state && P.status === 'idle') P.connect(); // check the server so the menu can show offline/online
+    P.syncInvite();
+  }
+
   const table = {
     store, gifts, quests, rank, index, bag, wheel, chests, settings, list, upgrades,
-    tanks: tankShop, skins: skinShop, death, confirm, buyTank,
+    tanks: tankShop, skins: skinShop, death, confirm, buyTank, party,
   };
 
   return {

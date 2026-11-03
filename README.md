@@ -74,6 +74,15 @@ scripts/           build, sim test, multiplayer test
 
 The server is authoritative. It runs at 30 ticks/s and sends area-of-interest snapshots of about 2-3 KB each. Clients interpolate other entities and predict their own tank with reconciliation.
 
+## Parties
+
+The people button opens the Party menu. Create a party (5-letter code) or join one by code / CrazyGames invite.
+The leader picks a mode and starts; the whole party lands on the same server (and the same team in team modes).
+Size limits: Battle 10, Red VS Blue 5 (one team), 4 Teams 4 (one team) - bigger parties can't pick that mode.
+CrazyGames: the invite button shows while the Party menu is open (and in a match), `updateRoom`/`leftRoom` report
+the party/room, the join-room listener accepts invites while the game is open, and Instant Multiplayer opens a party.
+Parties need the online server (`npm start` / Render).
+
 ## Combat notes
 
 - Bullets collide with each other and cancel out with a small white puff.

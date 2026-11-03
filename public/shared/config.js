@@ -58,3 +58,12 @@ export const TEAM_TARGET = 25;
 
 export const SPAWN_SHIELD = 20; // seconds of spawn protection
 export const COMBAT_TIME = 10; // seconds after being hit by a tank that you count as 'in combat'
+
+// Parties: friends queue together and land on the same server (and the same team in team modes).
+export const PARTY_MAX = 10;
+// how many party members a mode can take: a whole server in free-for-all, one team's slots in team modes
+export function partyCap(modeId) {
+  const m = MODES[modeId];
+  if (!m) return 0;
+  return m.teams ? (m.teamCap || Math.floor(m.maxHumans / m.teams)) : m.maxHumans;
+}

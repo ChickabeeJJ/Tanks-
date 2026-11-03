@@ -40,7 +40,7 @@ export function createHUD(G) {
     <div class="rbtn big" id="b-index">${ic('book', 46)}<span class="lbl">Index</span><span class="key">X</span></div>
     <div class="row mini-row">
       <div class="rbtn mini" id="b-settings" title="Settings">${ic('gear', 24)}</div>
-      <div class="rbtn mini" id="b-invite" title="Invite friends">${ic('people', 24)}</div>
+      <div class="rbtn mini" id="b-invite" title="Party">${ic('people', 24)}</div>
     </div>
   </div>
   <div id="right">

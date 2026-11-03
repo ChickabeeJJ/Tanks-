@@ -68,7 +68,7 @@ export class Arena {
   }
 
   // ------------------------------------------------------------------ lifecycle
-  async start(mode, roomId) {
+  async start(mode, roomId, team) {
     // when the tab is hidden, tell the server we stopped (no drifting while away)
     // and when it comes back, drop any effects that piled up while rendering was paused
     this.onHide = () => {
@@ -95,7 +95,7 @@ export class Arena {
     this.conn = conn;
     const d = profile.d;
     conn.join({
-      mode, room: roomId, name: d.name || 'Player', level: d.level, xp: d.xp, skin: d.skin, owned: d.owned,
+      mode, room: roomId, team: team | 0, name: d.name || 'Player', level: d.level, xp: d.xp, skin: d.skin, owned: d.owned,
       caps: profile.caps(), xpMul: profile.xpMul(), gemMul: profile.gemMul(), bonusPts: (profile.d.ptsBoost || 0) * 2, uid: d.uid, rank: d.rank.idx, totalKills: d.totalKills,
     });
   }
@@ -113,7 +113,7 @@ export class Arena {
     this.buildPools();
     this.ready = true;
     this.G.hud.toast(`Joined ${this.modeDef.name}!`, 'blue', 2600);
-    if (this.online) SDK.showInviteButton({ room: this.roomId, mode: m.mode });
+    if (this.G.party) this.G.party.syncInvite(); // CrazyGames invite button (party code + this room)
   }
 
   onDisconnect() {
