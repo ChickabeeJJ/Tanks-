@@ -34,7 +34,15 @@ export class Tutorial {
       },
       portal: {
         title: 'Head into battle',
-        art: '<div class="tut-portal"></div>',
+        art: `<svg class="tut-portal2" viewBox="0 0 96 80">
+          <defs><radialGradient id="tpg" cx="50%" cy="70%" r="60%"><stop offset="0" stop-color="#fff"/><stop offset=".35" stop-color="#ffd0e4"/><stop offset="1" stop-color="#ff2d7a"/></radialGradient>
+            <linearGradient id="tpa" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff7ab0"/><stop offset="1" stop-color="#d4105c"/></linearGradient></defs>
+          <path d="M14 76V44a34 34 0 0 1 68 0v32h-12V44a22 22 0 0 0-44 0v32z" fill="url(#tpa)"/>
+          <path d="M26 76V44a22 22 0 0 1 44 0v32z" fill="url(#tpg)" class="tp-core"/>
+          <g class="tp-swirl"><path d="M48 34a14 14 0 1 1-12 21" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/><path d="M48 44a6 6 0 1 1-5 9" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" opacity=".7"/></g>
+          <path class="tp-arrow" d="M48 4v14m-7-7l7 7 7-7" fill="none" stroke="#ffd21f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle class="tp-spark s1" cx="12" cy="30" r="2.5" fill="#fff"/><circle class="tp-spark s2" cx="86" cy="24" r="2" fill="#fff"/><circle class="tp-spark s3" cx="88" cy="60" r="2.5" fill="#fff"/>
+        </svg>`,
         text: 'Follow the arrows into the <b>Battle</b> portal',
       },
       shoot: {
@@ -114,7 +122,8 @@ export class Tutorial {
       const a = G.arena;
       if (this.step === 'shoot') {
         this.pointAtShape(a, dt);
-        if (profile.d.totalShapes - this.shapes0 >= 3 || this.t > 20) { this.clearArrows(); Audio.click(); this.show('upgrade'); this.sp0 = a.me.sp; }
+        if (Input.firing() || G.toggles.autoFire || G.toggles.autoSpin) this.fireT = (this.fireT || 0) + dt;
+        if (profile.d.totalShapes - this.shapes0 >= 1 || (this.fireT || 0) > 2.5 || this.t > 10) { this.clearArrows(); Audio.click(); this.show('upgrade'); this.sp0 = a.me.sp; }
       } else if (this.step === 'upgrade') {
         if (G.hud.eOpen || G.hud.qOpen || a.me.sp < this.sp0 || this.t > 14) this.finish(false);
       }

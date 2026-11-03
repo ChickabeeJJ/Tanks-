@@ -1,6 +1,6 @@
 // Authoritative game simulation. Runs on the Node server (multiplayer) and in the
 // browser (offline fallback). Pure JS, no DOM / Node APIs.
-import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME, MOVE_ACCEL, ROOM_SIZE, MAX_BOTS } from './config.js';
+import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME, MOVE_ACCEL, ROOM_SIZE, MAX_BOTS, TEAM_TARGET } from './config.js';
 import { TANKS, getTank, derived, canUse, upgradeOptions } from './tanks.js';
 import { addXp, statPointsForLevel, MAX_LEVEL } from './progression.js';
 import { botName, botLevel } from './names.js';
@@ -84,6 +84,7 @@ export class World {
     this.tmp = [];
     this.maxBots = opts.botTarget ?? MAX_BOTS;
     this.walls = mapWalls(this.modeId, this.half);
+    this.teamScore = [0, 0, 0, 0, 0];
     this.humans = 0;
     for (let i = 0; i < this.mode.shapes; i++) this.spawnShape(true);
     for (let i = 0; i < this.maxBots; i++) this.addBot();
@@ -158,9 +159,15 @@ export class World {
   spawnShape(initial) {
     const h = this.half - 8;
     let x = 0, z = 0, ok = false;
+    const centre = rand() < 0.45; // nearly half of all shapes spawn in the rich centre
     for (let tries = 0; tries < 12 && !ok; tries++) {
-      x = (rand() * 2 - 1) * h;
-      z = (rand() * 2 - 1) * h;
+      if (centre) {
+        const a = rand() * TAU, rr = Math.sqrt(rand()) * this.half * 0.38;
+        x = Math.cos(a) * rr; z = Math.sin(a) * rr;
+      } else {
+        x = (rand() * 2 - 1) * h;
+        z = (rand() * 2 - 1) * h;
+      }
       ok = !this.anyBaseAt(x, z, 6) && !inWall(this.walls, x, z, 7);
       if (ok && !initial) {
         for (const t of this.tanks.values()) {
@@ -188,7 +195,7 @@ export class World {
       id, kind: 'tank', name: String(o.name || 'Player').slice(0, 20), isBot: !!o.isBot, uid: o.uid || null,
       level: clamp(Math.floor(o.level || 1), 1, MAX_LEVEL), xp: Math.max(0, Math.floor(o.xp || 0)),
       skin: SKIN_IDS.includes(o.skin) ? o.skin : 'default', owned, caps,
-      xpMul: clamp(o.xpMul || 1, 1, 2), gemMul: clamp(o.gemMul || 1, 1, 2),
+      xpMul: clamp(o.xpMul || 1, 1, 2), gemMul: clamp(o.gemMul || 1, 1, 2), bonusPts: clamp(Math.floor(o.bonusPts || 0), 0, 10),
       team: this.assignTeam(), tankId: 'default', stats: [0, 0, 0, 0, 0, 0, 0, 0], spent: 0,
       x: 0, z: 0, vx: 0, vz: 0, aim: 0, r: 2, hp: 100, d: null, alive: false,
       input: { mx: 0, mz: 0, aim: 0, fire: false }, seq: 0, cd: [], orbs: 0, orbSeq: 0,
@@ -297,8 +304,8 @@ export class World {
   statUp(id, i) {
     const t = this.tanks.get(id);
     if (!t || !t.alive || !(i >= 0 && i < 8)) return false;
-    if (t.spent >= statPointsForLevel(t.level)) return false;
     if (t.stats[i] >= t.caps[i]) { t.ev.push(['cap']); return false; }
+    if (t.spent >= statPointsForLevel(t.level) + t.bonusPts) return false;
     t.stats[i]++;
     t.spent++;
     this.recalc(t);
@@ -379,6 +386,14 @@ export class World {
     const byTank = k && k !== t ? getTank(k.tankId).name : '';
     t.ev.push(['dead', byName, byTank, t.sessionXp, t.kills, Math.round(this.time - t.spawnTime)]);
     this.fx.push({ tick: this.tick, d: [FX.DEATH, r1(t.x), r1(t.z), t.team] });
+    if (k && k !== t && this.mode.teams && k.team && k.team !== t.team) {
+      // team modes: every enemy kill scores a point; first team to TEAM_TARGET wins the round
+      this.teamScore[k.team]++;
+      if (this.teamScore[k.team] >= TEAM_TARGET) {
+        for (const o of this.tanks.values()) o.ev.push(['teamwin', k.team]);
+        this.teamScore = [0, 0, 0, 0, 0];
+      }
+    }
     if (k && k !== t) {
       k.kills++;
       k.killPend++;
@@ -618,7 +633,7 @@ export class World {
 
     // --- refill shapes
     let n = 0;
-    while (this.shapes.size < this.mode.shapes && n++ < 3) this.spawnShape(false);
+    while (this.shapes.size < this.mode.shapes && n++ < 6) this.spawnShape(false);
 
     if (this.fx.length && this.fx[0].tick < this.tick - 60) {
       this.fx = this.fx.filter((f) => f.tick >= this.tick - 60);
@@ -682,6 +697,10 @@ export class World {
           if (segDist2(bl.px, bl.pz, bl.x, bl.z, e.x, e.z) > rr * rr) continue;
           e.hp -= bl.dmg;
           bl.hp -= e.dmg;
+          if (bl.k !== 'flame' && bl.lastShape !== e.id) {
+            bl.lastShape = e.id; // one puff per bullet/shape contact
+            this.fx.push({ tick: this.tick, d: [FX.HIT, r1(bl.x), r1(bl.z), r2(bl.r * 0.8)] });
+          }
           if (e.hp <= 0) this.killShape(e, bl.owner);
         } else if (e.kind === 'tank') {
           if (!e.alive || e.id === bl.owner) continue;
@@ -811,7 +830,7 @@ export class World {
     const melee = def.barrels.length === 0 || def.cls === 'Melee';
 
     // spend stat points
-    const total = statPointsForLevel(t.level);
+    const total = statPointsForLevel(t.level) + t.bonusPts;
     let guard = 0;
     while (t.spent < total && guard++ < 20) {
       const order = melee ? MELEE_BUILD : b.build;
@@ -956,12 +975,13 @@ export class World {
     cs.fxTick = this.tick;
     const me = {
       a: v.alive ? 1 : 0, hp: Math.ceil(v.hp), mhp: v.d.maxHp, lv: v.level, xp: Math.floor(v.xp),
-      sp: statPointsForLevel(v.level) - v.spent, st: v.stats, cp: v.caps, tk: v.tankId,
+      sp: statPointsForLevel(v.level) + v.bonusPts - v.spent, st: v.stats, cp: v.caps, tk: v.tankId,
       sh: Math.max(0, r1(v.shieldUntil - now)), k: v.kills, sx: v.sessionXp, x: r2(v.x), z: r2(v.z),
       team: v.team, cb: this.inCombat(v) ? r1(v.combatUntil - now) : 0, gp: v.gemPend, xd: v.xpPend, sd: v.shapePend, kd: v.killPend, ev: v.ev, slow: v.slowUntil > now ? 1 : 0,
     };
     v.gemPend = 0; v.xpPend = 0; v.shapePend = 0; v.killPend = 0; v.ev = [];
     const snap = { time: r2(now), ack: v.seq, you: v.id, tk, info, sh, bl, fx, me };
+    if (this.mode.teams) snap.ts = this.teamScore.slice(1, this.mode.teams + 1);
     if (cs.lbTick === undefined || this.tick - cs.lbTick >= 15) {
       snap.lb = this.leaderboard(viewerId);
       cs.lbTick = this.tick;

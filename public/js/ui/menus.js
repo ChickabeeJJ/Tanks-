@@ -63,7 +63,7 @@ export function createMenus(G) {
       <div class="mbody"></div></div>`);
     const body = el.querySelector('.mbody');
     const st = { el, body, tab: tab || (tabs && tabs[0].id), onClose };
-    el.querySelector('.mclose').addEventListener('click', () => { Audio.click(); close(); });
+    el.querySelector('.mclose').addEventListener('click', () => { Audio.click(); el.classList.remove('opening'); close(); });
     const draw = () => { body.innerHTML = ''; render(body, st); };
     st.redraw = draw;
     if (tabs) {
@@ -646,44 +646,63 @@ export function createMenus(G) {
       const res = profile.openChest(c, free);
       if (!res) { Audio.error(); G.hud.toast(free ? 'Free chest not ready yet!' : 'Not enough Gems!', 'red'); return; }
       st.busy = true;
+      st.el.classList.add('opening'); // stage fills the whole window
+      const R = rar(res.skin);
       const body = st.body;
       body.innerHTML = '';
-      const stage = h(`<div class="cs-stage" style="--cc:${c.color};--cd:${c.dark}">
-        <div class="cs-spot"></div>
-        <div class="cs-chest">${chestArt(c, 190)}</div>
-        <div class="cs-flash"></div>
+      const stage = h(`<div class="cs-stage" style="--cc:${c.color};--cd:${c.dark};--rc:${R.color};--rd:${R.dark}">
+        <div class="cs-bgrays"></div><div class="cs-spot"></div>
+        <div class="cs-glow"></div><div class="cs-leak"></div>
+        <div class="cs-chest drop">${chestArt(c, 200)}</div>
+        <div class="cs-ring"></div><div class="cs-flash"></div>
         <div class="reel hidden"><div class="reel-strip"></div><div class="reel-mark"></div><div class="reel-fade l"></div><div class="reel-fade r"></div></div>
         <div class="cs-reveal hidden"></div>
       </div>`);
       body.appendChild(stage);
       const chestEl = stage.querySelector('.cs-chest');
-      // 1) shake + rumble ticks
-      chestEl.classList.add('shake');
-      let n = 0;
-      const rumble = setInterval(() => { Audio.tick(); if (++n > 8) clearInterval(rumble); }, 95);
+      // 1) build-up: shake gets stronger, light leaks out, glow pulses in the prize's rarity colour
+      const steps = [[350, 'shake1'], [900, 'shake2'], [1350, 'shake3']];
+      for (const [ms, cls] of steps) setTimeout(() => { chestEl.classList.remove('drop', 'shake1', 'shake2'); chestEl.classList.add(cls); stage.classList.add('charge-' + cls); }, ms);
+      let gap = 170, n = 0;
+      const rumble = () => { if (n++ > 16) return; Audio.tick(); gap = Math.max(55, gap * 0.86); setTimeout(rumble, gap); };
+      setTimeout(rumble, 350);
+      // 2) burst
       setTimeout(() => {
-        // 2) burst open
-        chestEl.classList.remove('shake');
+        chestEl.classList.remove('shake3');
         chestEl.classList.add('open');
-        stage.querySelector('.cs-flash').classList.add('go');
+        stage.classList.add('burst');
         Audio.boom();
-        setTimeout(() => spinReel(stage, c, res, st), 450);
-      }, 950);
+        shards(stage, c);
+        setTimeout(() => spinReel(stage, c, res, st), 650);
+      }, 1750);
+    }
+
+    function shards(stage, c) {
+      for (let k = 0; k < 14; k++) {
+        const sh = document.createElement('i');
+        sh.className = 'shard';
+        const a = (k / 14) * Math.PI * 2 + Math.random() * 0.4, d = 140 + Math.random() * 160;
+        sh.style.setProperty('--dx', Math.cos(a) * d + 'px');
+        sh.style.setProperty('--dy', Math.sin(a) * d - 40 + 'px');
+        sh.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
+        sh.style.background = k % 3 === 0 ? '#ffd21f' : k % 3 === 1 ? c.color : c.dark;
+        stage.appendChild(sh);
+        setTimeout(() => sh.remove(), 1200);
+      }
     }
 
     function spinReel(stage, c, res, st) {
       stage.querySelector('.cs-chest').classList.add('gone');
+      stage.classList.add('reeling');
       const reel = stage.querySelector('.reel');
       const strip = stage.querySelector('.reel-strip');
       reel.classList.remove('hidden');
-      // weighted filler items, winner placed near the end
       const roll = () => { let r = Math.random() * 100; for (const [id, p] of c.drops) { r -= p; if (r <= 0) return id; } return c.drops[0][0]; };
       const N = 60, WIN = 52;
       const items = Array.from({ length: N }, (_, i) => (i === WIN ? res.skin : roll()));
-      // tease: put a rare-looking item right after the winner
-      items[WIN + 1] = c.drops[c.drops.length - 1][0];
+      items[WIN + 1] = c.drops[c.drops.length - 1][0]; // near-miss tease
       strip.innerHTML = items.map((id, i) => skinCard(id, i === WIN ? 'win' : '')).join('');
-      const ITEM = 128; // card width + gap (matches CSS)
+      const ITEM = 128;
       const view = reel.clientWidth;
       const jitter = (Math.random() - 0.5) * (ITEM - 30);
       const target = WIN * ITEM + ITEM / 2 - view / 2 + jitter;
@@ -692,7 +711,6 @@ export function createMenus(G) {
       const dur = 5600;
       strip.style.transition = `transform ${dur}ms cubic-bezier(0.06, 0.82, 0.12, 1)`;
       strip.style.transform = `translateX(${-target}px)`;
-      // tick each time a card passes the marker
       let last = -1, alive = true;
       const mark = stage.querySelector('.reel-mark');
       const loop = () => {
@@ -710,7 +728,8 @@ export function createMenus(G) {
       setTimeout(() => {
         alive = false;
         strip.querySelectorAll('.rl-item')[WIN].classList.add('landed');
-        setTimeout(() => reveal(stage, c, res, st), 700);
+        strip.classList.add('settled');
+        setTimeout(() => reveal(stage, c, res, st), 800);
       }, dur + 150);
     }
 
@@ -719,12 +738,12 @@ export function createMenus(G) {
       const R = rar(res.skin);
       const big = sk.rarity === 'legendary' || sk.rarity === 'mythic';
       stage.querySelector('.reel').classList.add('dim');
+      stage.classList.add('revealing');
       const rv = stage.querySelector('.cs-reveal');
-      rv.style.setProperty('--rc', R.color);
-      rv.style.setProperty('--rd', R.dark);
-      rv.innerHTML = `<div class="rv-rays"></div>
-        <div class="rv-rarity lbl" style="--o:${R.dark}">${R.name}</div>
-        <div class="rv-skin"><img src="${skinPreview(res.skin, 160)}" alt=""></div>
+      const sparkles = Array.from({ length: 14 }, (_, k) => `<i class="spk" style="left:${10 + Math.random() * 80}%;top:${8 + Math.random() * 70}%;animation-delay:${(k * 0.17).toFixed(2)}s"></i>`).join('');
+      rv.innerHTML = `<div class="rv-rays"></div><div class="rv-wave"></div>${sparkles}
+        <div class="rv-ribbon lbl" style="--o:${R.dark}">${R.name}</div>
+        <div class="rv-card"><div class="rv-skin"><img src="${skinPreview(res.skin, 160)}" alt=""></div></div>
         <div class="rv-name lbl" style="--o:${R.dark}">${sk.name}</div>
         <div class="rv-msg lbl ${res.dup ? 'dup' : 'new'}">${res.dup ? `Duplicate! +${fmtFull(res.refund)} Gems` : 'NEW SKIN!'}</div>
         <div class="row center rv-btns">
@@ -733,10 +752,10 @@ export function createMenus(G) {
           <button class="btn gray" data-a="back">Back</button>
         </div>`;
       rv.classList.remove('hidden');
-      if (big) { Audio.level(); confetti(stage, 90); SDK.happytime(); } else { Audio.reward(); confetti(stage, 30); }
-      G.onSkinChanged && profile.d.skin;
-      rv.querySelector('[data-a="back"]').onclick = () => { st.busy = false; st.redraw(); };
-      rv.querySelector('[data-a="again"]').onclick = () => { st.busy = false; st.redraw(); start(c, false, st); };
+      if (big) { rv.classList.add('big'); Audio.level(); confetti(stage, 110); SDK.happytime(); } else { Audio.reward(); confetti(stage, 36); }
+      const done = () => { st.busy = false; st.el.classList.remove('opening'); };
+      rv.querySelector('[data-a="back"]').onclick = () => { done(); st.redraw(); };
+      rv.querySelector('[data-a="again"]').onclick = () => { done(); st.redraw(); start(c, false, st); };
       const eq = rv.querySelector('[data-a="equip"]');
       if (eq) eq.onclick = () => { profile.equipSkin(res.skin); G.onSkinChanged(); G.hud.toast(`${sk.name} equipped!`, 'gold'); eq.disabled = true; eq.textContent = 'Equipped'; };
     }
@@ -833,7 +852,7 @@ export function createMenus(G) {
       title: 'Upgrades Shop', icon: 'statup', wide: true,
       render(b, st) {
         const d = profile.d;
-        b.appendChild(h(`<div class="up-head"><div><div class="up-h1 lbl">Permanent upgrades</div><div class="muted">Raise your stat limits and boost every reward. Applies from your next match.</div></div>
+        b.appendChild(h(`<div class="up-head"><div><div class="up-h1 lbl">Permanent upgrades</div><div class="muted">Raise your stat limits, boost every reward and get extra stat points. Applies from your next match.</div></div>
           <div class="up-bal">${ic('gem', 26)}<span class="lbl">${fmtFull(d.gems)}</span></div></div>`));
         b.appendChild(h('<div class="up-sec lbl">Stat caps</div>'));
         const grid = h('<div class="up-grid"></div>');
@@ -867,25 +886,30 @@ export function createMenus(G) {
         b.appendChild(grid);
         b.appendChild(h('<div class="up-sec lbl">Boosts</div>'));
         const boosts = h('<div class="up-boosts"></div>');
-        for (const [key, label, icon, col] of [['xpBoost', 'XP Boost', 'star', '#ffb31a'], ['gemBoost', 'Gem Boost', 'gem', '#25b8f0']]) {
-          const lv = d[key];
+        const BOOSTS = [
+          ['xpBoost', 'XP Boost', 'star', '#ffb31a', (l) => `+${l * 10}%`, 'More XP from everything'],
+          ['gemBoost', 'Gem Boost', 'gem', '#25b8f0', (l) => `+${l * 10}%`, 'More gems from shapes and kills'],
+          ['ptsBoost', 'Stat Points', 'statup', '#3fd34a', (l) => `+${l * 2}`, 'Extra stat points every match'],
+        ];
+        for (const [key, label, icon, col, fmtv, desc] of BOOSTS) {
+          const lv = d[key] || 0;
           const maxed = lv >= 5;
           const price = boostPrice(lv);
           const afford = d.gems >= price;
           const card = h(`<div class="up-boost ${flash === key ? 'bought' : ''}" style="--c:${col}">
             <div class="ub-icon">${ic(icon, 54)}</div>
             <div class="ub-mid"><div class="up-name lbl">${label}</div>
-              <div class="ub-pct lbl">+${lv * 10}%${maxed ? '' : ` <span>&rarr; +${(lv + 1) * 10}%</span>`}</div>
+              <div class="ub-row"><span class="ub-pct lbl">${fmtv(lv)}</span>${maxed ? '' : `<span class="ub-next">Next: ${fmtv(lv + 1)}</span>`}</div>
               <div class="up-pips five">${Array.from({ length: 5 }, (_, k) => `<i class="${k < lv ? 'got' : k === lv ? 'next' : ''} ${flash === key && k === lv - 1 ? 'pop' : ''}"></i>`).join('')}</div>
-              <div class="up-sub">${key === 'xpBoost' ? 'More XP from everything' : 'More gems from shapes and kills'}</div></div>
+              <div class="up-sub">${desc}</div></div>
             ${maxed ? '<div class="up-max lbl">MAX</div>' : `<button class="btn ${afford ? 'green' : 'gray'} up-buy">${ic('gem', 20)} ${fmt(price)}</button>`}</div>`);
           const buy = card.querySelector('.up-buy');
           if (buy) buy.onclick = () => {
             if (!profile.spend(price)) { Audio.error(); G.hud.toast('Not enough Gems!', 'red'); card.classList.remove('nope'); void card.offsetWidth; card.classList.add('nope'); return; }
-            d[key]++;
+            d[key] = lv + 1;
             profile.emit('boost');
             flash = key;
-            G.hud.toast(`${label} is now +${(lv + 1) * 10}%!`, 'gold');
+            G.hud.toast(`${label} is now ${fmtv(lv + 1)}!`, 'gold');
             Audio.reward();
             st.redraw();
           };

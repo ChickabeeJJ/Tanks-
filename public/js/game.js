@@ -1,7 +1,7 @@
 // Arena: connects (online or offline), renders snapshots, predicts the local tank.
 import * as THREE from '../vendor/three.module.min.js';
 import { placeSun } from './render/scene.js';
-import { DT, SHAPE_LIST, SHAPES, MODES, FX, TEAM_COLORS, BULLET_KINDS } from '../shared/config.js';
+import { DT, SHAPE_LIST, SHAPES, MODES, FX, TEAM_COLORS, BULLET_KINDS, TEAM_TARGET } from '../shared/config.js';
 import { getTank, derived, childrenOf, canUse, TANKS } from '../shared/tanks.js';
 import { predictMove, mapWalls } from '../shared/world.js';
 import { fmt, fmtFull } from '../shared/progression.js';
@@ -94,7 +94,7 @@ export class Arena {
     const d = profile.d;
     conn.join({
       mode, room: roomId, name: d.name || 'Player', level: d.level, xp: d.xp, skin: d.skin, owned: d.owned,
-      caps: profile.caps(), xpMul: profile.xpMul(), gemMul: profile.gemMul(), uid: d.uid, rank: d.rank.idx, totalKills: d.totalKills,
+      caps: profile.caps(), xpMul: profile.xpMul(), gemMul: profile.gemMul(), bonusPts: (profile.d.ptsBoost || 0) * 2, uid: d.uid, rank: d.rank.idx, totalKills: d.totalKills,
     });
   }
 
@@ -236,6 +236,7 @@ export class Arena {
     if (me.kd) profile.trackKills(me.kd);
     for (const ev of me.ev) this.onEvent(ev);
     if (s.lb) { this.lastLB = s.lb; this.G.hud.renderLB(s.lb); }
+    this.G.hud.renderTeams(s.ts || null, me.team, TEAM_TARGET);
     if (s.ch) for (const [n, m, team] of s.ch) this.G.hud.chatLine(n, m, this.teams ? '#' + TEAM_COLORS[team].toString(16).padStart(6, '0') : '#ffd84a');
     for (const f of s.fx) this.onFx(f);
   }
@@ -254,6 +255,14 @@ export class Arena {
       case 'cap': hud.toast('Upgrade cap reached!', 'red'); Audio.error(); break;
       case 'locked': hud.toast('That tank is locked!', 'red'); break;
       case 'kill': hud.toast(`You destroyed ${ev[1]}!`, 'gold'); Audio.kill(); SDK.happytime(); break;
+      case 'teamwin': {
+        const names = ['', 'Blue', 'Red', 'Green', 'Purple'];
+        const mine = ev[1] === (this.me && this.me.team);
+        hud.big(`${names[ev[1]]} team wins the round!`, 3000);
+        hud.toast(mine ? 'Your team won! New round started' : 'New round started', mine ? 'gold' : 'blue', 3000);
+        if (mine) { Audio.level(); SDK.happytime(); } else Audio.click();
+        break;
+      }
       case 'alpha': profile.d.alphas++; profile.save(); break;
       case 'dead': {
         Audio.death();
@@ -499,6 +508,7 @@ export class Arena {
 
     // camera control
     rig.yaw -= Input.consumeYaw() * 0.006 * sens;
+    rig.pitch = Math.max(0.22, Math.min(1.2, rig.pitch + Input.consumePitch() * 0.004 * sens)); // tilt up/down
     if (G.toggles.lock && Input.locked) rig.yaw -= Input.consumeLock() * 0.0028 * sens;
     else Input.consumeLock();
     const wh = Input.consumeWheel();

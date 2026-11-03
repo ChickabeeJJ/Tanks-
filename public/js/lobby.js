@@ -141,6 +141,7 @@ export class Lobby {
     const rig = G.camRig;
     const sens = profile.d.settings.sens || 1;
     rig.yaw -= Input.consumeYaw() * 0.006 * sens;
+    rig.pitch = Math.max(0.22, Math.min(1.2, rig.pitch + Input.consumePitch() * 0.004 * sens)); // tilt up/down
     if (G.toggles.lock && Input.locked) rig.yaw -= Input.consumeLock() * 0.0028 * sens;
     else Input.consumeLock();
     const wh = Input.consumeWheel();

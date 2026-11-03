@@ -17,7 +17,8 @@ function ensure() {
   return ctx;
 }
 function apply() {
-  if (master) master.gain.value = SDK.muted ? 0 : volume;
+  // all sound effects and noise play at 20% (reduced by 80%)
+  if (master) master.gain.value = SDK.muted ? 0 : volume * 0.2;
 }
 SDK.onAudioChange(apply);
 

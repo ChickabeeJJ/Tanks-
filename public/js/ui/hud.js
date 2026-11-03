@@ -29,6 +29,7 @@ export function createHUD(G) {
     <div class="rbtn sq qe teal arena-only" id="ebtn" title="Stat upgrades (E)">${ic('statup', 40)}<span class="kl lbl">E</span><span class="badge br hidden"></span></div>
     <div id="xpgain"></div>
   </div>
+  <div id="teamscore" class="hidden"></div>
   <div id="qpanel" class="hidden"></div>
   <div id="epanel" class="hidden"></div>
   <div id="left">
@@ -121,6 +122,7 @@ export function createHUD(G) {
       root.querySelectorAll('.lobby-only').forEach((el) => el.classList.toggle('hidden', mode !== 'lobby'));
       if (mode !== 'arena') { this.closeQ(); this.closeE(); }
       this.setCombat(0);
+      if (mode !== 'arena') this.renderTeams(null);
     },
 
     setToggles(t) {
@@ -207,31 +209,54 @@ export function createHUD(G) {
 
     // ---------------- E (stats)
     toggleE() { if (this.mode !== 'arena') return; this.eOpen ? this.closeE() : this.openE(); },
-    openE() { this.eOpen = true; this.closeQ(); els.e.classList.remove('hidden'); $('#topbar', root).classList.add('mode-e'); this._eKey = ''; G.arena && G.arena.refreshE(); },
+    openE() { this.eOpen = true; this._eRows = null; this.closeQ(); els.e.classList.remove('hidden'); $('#topbar', root).classList.add('mode-e'); this._eKey = ''; G.arena && G.arena.refreshE(); },
     closeE() { this.eOpen = false; els.e.classList.add('hidden'); $('#topbar', root).classList.remove('mode-e'); },
     renderE(me) {
       badge(els.eBadge, me ? me.sp : 0);
       if (!this.eOpen || !me) return;
-      const key = me.st.join() + '|' + me.cp.join() + '|' + me.sp;
-      if (key === this._eKey) return;
-      this._eKey = key;
-      els.e.innerHTML = '';
-      for (let i = 0; i < 8; i++) {
-        const s = STATS[i];
-        const maxed = me.st[i] >= me.cp[i];
-        const row = document.createElement('div');
-        row.className = 'stat' + (maxed ? ' maxed' : '');
-        const capBtn = maxed ? `<div class="cap" title="Raise the cap in the Upgrades Shop">${ic('gem', 20)}</div>` : '';
-        const left = i % 2 === 0;
-        row.innerHTML = `${left ? capBtn : ''}<div class="sb" style="--c:${s.color}">${ic(STAT_ICONS[i], 30)}<span class="lbl">${s.name}</span><span class="k">${i + 1}</span></div><div class="val lbl" style="--c:${s.color}">${me.st[i]}</div>${left ? '' : capBtn}`;
-        row.querySelector('.sb').addEventListener('click', () => G.arena && G.arena.statUp(i));
-        const cb = row.querySelector('.cap');
-        if (cb) cb.addEventListener('click', () => G.menus.open('upgrades'));
-        els.e.appendChild(row);
+      // Build the rows once per opening; afterwards only update the numbers (no rebuild = no flash).
+      if (!this._eRows) {
+        els.e.innerHTML = '';
+        this._eRows = [];
+        for (let i = 0; i < 8; i++) {
+          const s = STATS[i];
+          const row = document.createElement('div');
+          row.className = 'stat';
+          const left = i % 2 === 0;
+          const capBtn = `<div class="cap" title="Raise the cap in the Upgrades Shop">${ic('gem', 20)}</div>`;
+          row.innerHTML = `${left ? capBtn : ''}<div class="sb" style="--c:${s.color}">${ic(STAT_ICONS[i], 30)}<span class="lbl">${s.name}</span><span class="k">${i + 1}</span></div><div class="val lbl" style="--c:${s.color}">${me.st[i]}</div>${left ? '' : capBtn}`;
+          row.querySelector('.sb').addEventListener('click', () => G.arena && G.arena.statUp(i));
+          row.querySelector('.cap').addEventListener('click', () => G.menus.open('upgrades'));
+          els.e.appendChild(row);
+          this._eRows.push({ row, val: row.querySelector('.val'), v: me.st[i] });
+        }
       }
+      this._eRows.forEach((r, i) => {
+        r.row.classList.toggle('maxed', me.st[i] >= me.cp[i]); // cap button shows only on maxed stats
+        if (r.v === me.st[i]) return;
+        r.v = me.st[i];
+        r.val.textContent = r.v;
+        r.val.classList.remove('bump'); void r.val.offsetWidth; r.val.classList.add('bump');
+      });
+      els.e.classList.toggle('nopts', me.sp <= 0);
     },
 
     renderLB() { /* leaderboards removed */ },
+
+    // team modes: live team scores under the XP bar
+    renderTeams(scores, myTeam, target) {
+      const el = $('#teamscore', root);
+      if (!scores) { el.classList.add('hidden'); return; }
+      el.classList.remove('hidden');
+      const key = scores.join() + '|' + myTeam;
+      if (key === this._tsKey) return;
+      this._tsKey = key;
+      const names = ['Blue', 'Red', 'Green', 'Purple'];
+      const cols = ['#2f9dff', '#f0464f', '#3fcf5a', '#a64ef0'];
+      const best = Math.max(...scores);
+      el.innerHTML = scores.map((v, i) => `<div class="ts ${i + 1 === myTeam ? 'me' : ''} ${v === best && v > 0 ? 'lead' : ''}" style="--c:${cols[i]}">
+        <span class="tn">${names[i]}</span><b class="lbl">${v}</b><i style="width:${Math.min(100, (v / target) * 100)}%"></i></div>`).join('') + `<div class="ts-goal">First to ${target} kills</div>`;
+    },
 
     toast(text, cls = 'green', ms = 2200) {
       const el = document.createElement('div');

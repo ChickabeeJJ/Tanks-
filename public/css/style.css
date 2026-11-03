@@ -679,3 +679,101 @@ body.touch.in-lobby .tut { bottom: 64px; }
 .dth-tip { font-size: 14px; font-weight: 600; color: #1d3f66; background: #eef6ff; border-radius: 10px; padding: 8px 10px; border: 2px dashed #9cc6ec; }
 .dth-btns { display: flex; gap: 10px; justify-content: center; }
 .dth-btns .btn { font-size: 24px; padding: 10px 26px; }
+.stat .val.bump { animation: valBump .35s ease-out; }
+@keyframes valBump { 40% { transform: scale(1.35); filter: brightness(1.4); } }
+#epanel.nopts .stat .sb { filter: saturate(.7) brightness(.95); }
+.up-boosts { grid-template-columns: 1fr; }
+.up-boost { padding: 12px 14px; }
+.ub-row { display: flex; align-items: center; gap: 8px; margin-top: 2px; }
+.ub-next { font-size: 13px; font-weight: 800; color: #fff; background: #22b947; border-radius: 999px; padding: 2px 10px; box-shadow: 0 2px 0 #12722a; }
+.tut-portal2 { width: 96px; height: 80px; filter: drop-shadow(0 0 10px rgba(255,45,122,.6)); }
+.tut-portal2 .tp-core { animation: tpGlow 1.4s ease-in-out infinite; }
+.tut-portal2 .tp-swirl { transform-origin: 48px 52px; animation: spin 2.4s linear infinite; }
+.tut-portal2 .tp-arrow { animation: tpArrow 1s ease-in-out infinite; }
+.tut-portal2 .tp-spark { animation: twinkle 1.6s ease-in-out infinite; }
+.tut-portal2 .s2 { animation-delay: .5s; } .tut-portal2 .s3 { animation-delay: 1s; }
+@keyframes tpGlow { 50% { opacity: .75; } }
+@keyframes tpArrow { 50% { transform: translateY(7px); } }
+@keyframes twinkle { 0%, 100% { opacity: 0; transform: scale(.4); } 50% { opacity: 1; transform: scale(1.2); } }
+
+/* ================================================================ mobile joysticks v3: fixed, behind the HUD */
+#touch { z-index: 0; }
+#hud { z-index: 1; }
+#modal-root { z-index: 2; }
+.joy.fixed, body.touch .joy.fixed, body.touch.in-arena .joy.fixed, body.touch.in-lobby .joy.fixed {
+  display: block; position: fixed; top: auto; bottom: 20px; width: 128px; height: 128px; transform: none; opacity: .85; pointer-events: auto; }
+body.touch .joy.fixed.move, body.touch.in-arena .joy.fixed.move, body.touch.in-lobby .joy.fixed.move { left: calc(22px + env(safe-area-inset-left)); right: auto; }
+body.touch .joy.fixed.aim, body.touch.in-arena .joy.fixed.aim { right: calc(22px + env(safe-area-inset-right)); left: auto; }
+body.touch.in-lobby .joy.fixed.aim { display: none; }
+body.touch .joy.fixed.on { opacity: 1; transform: scale(1.04); }
+.joy.fixed .ring { box-shadow: 0 0 18px rgba(120,200,255,.45), inset 0 0 18px rgba(255,255,255,.3); }
+
+/* ================================================================ chest opening v2 (full-bleed) */
+.modal.opening { padding: 0; overflow: hidden; }
+.modal.opening .mbody { padding: 0; margin: 0; overflow: hidden; }
+.modal.opening .cs-stage { border-radius: 11px; height: min(520px, 74vh); }
+.cs-stage { position: relative; overflow: hidden; background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--cc) 30%, #1b2440), #070b18 78%); }
+.cs-stage.burst { animation: stageShake .45s ease-out; }
+@keyframes stageShake { 20% { transform: translate(-8px, 4px); } 40% { transform: translate(7px, -5px); } 60% { transform: translate(-4px, 3px); } 80% { transform: translate(2px, -1px); } }
+.cs-bgrays { position: absolute; left: 50%; top: 45%; width: 1400px; height: 1400px; margin: -700px 0 0 -700px; opacity: .35; animation: spin 18s linear infinite;
+  background: repeating-conic-gradient(rgba(255,255,255,.10) 0 8deg, transparent 8deg 18deg); }
+.cs-glow { position: absolute; left: 50%; top: 46%; width: 260px; height: 260px; margin: -130px 0 0 -130px; border-radius: 50%; opacity: 0;
+  background: radial-gradient(circle, var(--rc), transparent 65%); transition: opacity .4s, transform .4s; }
+.charge-shake1 .cs-glow { opacity: .35; animation: glowPulse .6s ease-in-out infinite; }
+.charge-shake2 .cs-glow { opacity: .6; transform: scale(1.3); animation: glowPulse .35s ease-in-out infinite; }
+.charge-shake3 .cs-glow { opacity: .9; transform: scale(1.7); animation: glowPulse .18s ease-in-out infinite; }
+@keyframes glowPulse { 50% { filter: brightness(1.5); } }
+.cs-leak { position: absolute; left: 50%; top: 46%; width: 520px; height: 520px; margin: -260px 0 0 -260px; opacity: 0; transition: opacity .4s;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--rc) 70%, #fff) 0 3deg, transparent 3deg 24deg); -webkit-mask-image: radial-gradient(circle, #000 18%, transparent 60%); mask-image: radial-gradient(circle, #000 18%, transparent 60%); animation: spin 6s linear infinite; }
+.charge-shake2 .cs-leak { opacity: .45; } .charge-shake3 .cs-leak { opacity: .85; animation-duration: 2s; }
+.cs-chest { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); transition: transform .35s ease-in, opacity .35s; z-index: 2; }
+.cs-chest.drop { animation: chestDrop .55s cubic-bezier(.3, 1.5, .5, 1); }
+@keyframes chestDrop { from { transform: translate(-50%, -160%) scale(.6); opacity: 0; } to { transform: translate(-50%, -50%); opacity: 1; } }
+.cs-chest.shake1 { animation: cshake .14s linear infinite; }
+.cs-chest.shake2 { animation: cshake2 .09s linear infinite; }
+.cs-chest.shake3 { animation: cshake3 .06s linear infinite; filter: brightness(1.25) drop-shadow(0 0 20px var(--rc)); }
+@keyframes cshake { 0%, 100% { transform: translate(-50%, -50%) rotate(0); } 25% { transform: translate(calc(-50% - 3px), -50%) rotate(-2deg); } 75% { transform: translate(calc(-50% + 3px), -50%) rotate(2deg); } }
+@keyframes cshake2 { 0%, 100% { transform: translate(-50%, -50%) rotate(0) scale(1.03); } 25% { transform: translate(calc(-50% - 6px), calc(-50% + 2px)) rotate(-4deg) scale(1.05); } 75% { transform: translate(calc(-50% + 6px), calc(-50% - 2px)) rotate(4deg) scale(1.05); } }
+@keyframes cshake3 { 0%, 100% { transform: translate(-50%, -50%) rotate(0) scale(1.08); } 25% { transform: translate(calc(-50% - 9px), calc(-50% + 3px)) rotate(-6deg) scale(1.1); } 75% { transform: translate(calc(-50% + 9px), calc(-50% - 3px)) rotate(6deg) scale(1.1); } }
+.cs-chest.open .lid { transform: translate(0, -90px) rotate(-30deg); opacity: 0; transition: transform .45s cubic-bezier(.2, 1.4, .5, 1), opacity .45s .2s; transform-origin: 30px 70px; }
+.cs-chest.gone { transform: translate(-50%, -50%) scale(.3); opacity: 0; }
+.cs-ring { position: absolute; left: 50%; top: 46%; width: 40px; height: 40px; margin: -20px 0 0 -20px; border-radius: 50%; border: 6px solid #fff; opacity: 0; z-index: 3; }
+.burst .cs-ring { animation: ringBlast .7s ease-out; }
+@keyframes ringBlast { 0% { transform: scale(.4); opacity: 1; } 100% { transform: scale(18); opacity: 0; border-width: 1px; } }
+.burst .cs-flash { animation: flash .6s ease-out; }
+.shard { position: absolute; left: 50%; top: 46%; width: 16px; height: 16px; z-index: 4; clip-path: polygon(50% 0, 100% 100%, 0 70%); animation: shardFly 1.1s cubic-bezier(.2, .8, .3, 1) forwards; }
+@keyframes shardFly { to { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0; } }
+.reeling .cs-spot { background: radial-gradient(ellipse at 50% 50%, rgba(255,255,255,.22), transparent 55%); }
+.rl-item { box-shadow: inset 0 -6px 0 var(--rc), 0 6px 14px color-mix(in srgb, var(--rc) 45%, transparent); }
+.reel-strip.settled .rl-item:not(.landed) { opacity: .35; transition: opacity .4s; }
+.rl-item.landed { animation: land2 .7s cubic-bezier(.2, 1.4, .4, 1) forwards; }
+@keyframes land2 { 0% { transform: scale(1); } 50% { transform: scale(1.3); } 100% { transform: scale(1.18); box-shadow: inset 0 -6px 0 var(--rc), 0 0 34px 10px var(--rc); } }
+/* reveal */
+.cs-reveal { background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--rc) 50%, transparent), rgba(6, 10, 22, .78) 70%); }
+.rv-rays { width: 1600px; height: 1600px; margin: -800px 0 0 -800px; top: 42%; left: 50%; animation: spin 16s linear infinite; }
+.rv-wave { position: absolute; left: 50%; top: 42%; width: 60px; height: 60px; margin: -30px 0 0 -30px; border-radius: 50%; border: 8px solid var(--rc); animation: ringBlast .9s ease-out forwards; }
+.cs-reveal .spk { position: absolute; width: 10px; height: 10px; background: #fff; clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%); animation: twinkle 1.6s ease-in-out infinite; box-shadow: 0 0 8px #fff; }
+.rv-ribbon { position: relative; font-size: 20px; letter-spacing: 4px; text-transform: uppercase; padding: 4px 26px; color: #fff;
+  background: linear-gradient(90deg, transparent, var(--rc) 18%, var(--rc) 82%, transparent); animation: slam .5s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes slam { from { transform: scale(2.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.rv-card { position: relative; perspective: 600px; }
+.rv-card .rv-skin { animation: cardFlip .8s cubic-bezier(.2, 1.3, .4, 1) both, rvfloat 2s ease-in-out .8s infinite; }
+@keyframes cardFlip { from { transform: rotateY(540deg) scale(.2); opacity: 0; } to { transform: rotateY(0) scale(1); opacity: 1; } }
+.rv-name { animation: slam .45s cubic-bezier(.2, 1.6, .4, 1) .35s both; }
+.rv-msg { animation: slam .4s cubic-bezier(.2, 1.6, .4, 1) .55s both; }
+.rv-btns { animation: rowIn .4s ease-out .7s both; }
+.cs-reveal.big .rv-rays { background: repeating-conic-gradient(rgba(255, 210, 31, .5) 0 9deg, transparent 9deg 20deg); }
+.cs-reveal.big .rv-skin { filter: drop-shadow(0 0 30px #ffd21f) drop-shadow(0 0 12px var(--rc)); }
+
+/* team scores */
+#teamscore { position: absolute; top: 100px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.ts { position: relative; overflow: hidden; display: flex; align-items: center; gap: 6px; min-width: 92px; padding: 3px 10px; border-radius: 10px;
+  background: rgba(12, 22, 44, .62); border: 3px solid var(--c); color: #fff; font-weight: 700; }
+.ts .tn { font-size: 13px; opacity: .9; }
+.ts b { font-size: 20px; --o: #0b1a33; margin-left: auto; }
+.ts i { position: absolute; left: 0; bottom: 0; height: 4px; background: var(--c); }
+.ts.me { background: color-mix(in srgb, var(--c) 45%, rgba(12,22,44,.7)); }
+.ts.lead { box-shadow: 0 0 12px var(--c); }
+.ts-goal { width: 100%; text-align: center; font-size: 12px; font-weight: 700; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+body.touch #teamscore { top: 76px; transform: translateX(-50%) scale(.8); transform-origin: top center; }
+.stat:not(.maxed) .cap { display: none; }

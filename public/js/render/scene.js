@@ -232,21 +232,59 @@ export function buildArena(half, mode, walls = []) {
     t.castShadow = true;
     root.add(t);
   }
-  // fairy lights on top of the walls (instanced)
-  const bulbs = [];
-  const colors = [0xff5c7a, 0xffd23f, 0x3fb2f5, 0x5be37a, 0xb76bf0];
-  for (let i = -half; i <= half; i += 6) {
-    bulbs.push([i, -half - T / 2], [i, half + T / 2], [-half - T / 2, i], [half + T / 2, i]);
+  // wall decor: lamp posts with glowing heads, and drooping garlands of party bulbs between them
+  {
+    const SP = 26; // post spacing
+    const postM = new THREE.MeshStandardMaterial({ color: 0x8ea4bd, metalness: 0.7, roughness: 0.3 });
+    const capM = new THREE.MeshStandardMaterial({ color: 0x5f7590, metalness: 0.7, roughness: 0.35 });
+    const lampM = new THREE.MeshBasicMaterial({ color: new THREE.Color(2.6, 2.3, 1.6), toneMapped: false });
+    const posts = [];
+    for (let i = -half; i <= half + 0.1; i += SP) {
+      posts.push([i, -half - T / 2], [i, half + T / 2]);
+      if (Math.abs(i) < half - 1) posts.push([-half - T / 2, i], [half + T / 2, i]);
+    }
+    const n = posts.length;
+    const postI = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.22, 0.32, 4.2, 8), postM, n);
+    const headI = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.75, 0.45, 0.5, 6), capM, n);
+    const lampI = new THREE.InstancedMesh(new THREE.SphereGeometry(0.42, 10, 8), lampM, n);
+    const m4 = new THREE.Matrix4();
+    posts.forEach(([x, z], k) => {
+      m4.makeTranslation(x, H + 2.1, z); postI.setMatrixAt(k, m4);
+      m4.makeTranslation(x, H + 4.5, z); headI.setMatrixAt(k, m4);
+      m4.makeTranslation(x, H + 4.05, z); lampI.setMatrixAt(k, m4);
+    });
+    for (const m of [postI, headI, lampI]) { m.castShadow = m !== lampI; root.add(m); }
+    // garlands: a sagging wire between neighbouring posts on each wall, bulbs hanging from it
+    const wirePts = [];
+    const bulbs = [];
+    const sides = [
+      (t) => [t, -half - T / 2], (t) => [t, half + T / 2], (t) => [-half - T / 2, t], (t) => [half + T / 2, t],
+    ];
+    for (const at of sides) {
+      for (let i = -half; i < half - 0.1; i += SP) {
+        const j = Math.min(half, i + SP);
+        const segs = 12;
+        for (let q = 0; q < segs; q++) {
+          const t0 = q / segs, t1 = (q + 1) / segs;
+          const y0 = H + 3.9 - Math.sin(t0 * Math.PI) * 1.6, y1 = H + 3.9 - Math.sin(t1 * Math.PI) * 1.6;
+          const [x0, z0] = at(i + (j - i) * t0), [x1, z1] = at(i + (j - i) * t1);
+          wirePts.push(x0, y0, z0, x1, y1, z1);
+          if (q % 2 === 1) bulbs.push([x1, y1 - 0.35, z1]);
+        }
+      }
+    }
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.Float32BufferAttribute(wirePts, 3));
+    root.add(new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: 0x3a4658 })));
+    const party = [new THREE.Color(3, 0.6, 1.0), new THREE.Color(2.8, 2.2, 0.4), new THREE.Color(0.4, 1.8, 3), new THREE.Color(0.6, 2.6, 0.9), new THREE.Color(2.0, 0.8, 3)];
+    const bulbI = new THREE.InstancedMesh(new THREE.SphereGeometry(0.26, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false }), bulbs.length);
+    bulbs.forEach(([x, y, z], k) => {
+      m4.makeScale(1, 1.35, 1); m4.setPosition(x, y, z);
+      bulbI.setMatrixAt(k, m4);
+      bulbI.setColorAt(k, party[k % party.length]);
+    });
+    root.add(bulbI);
   }
-  const bulb = new THREE.InstancedMesh(new THREE.SphereGeometry(0.35, 8, 6), new THREE.MeshBasicMaterial(), bulbs.length);
-  const m4 = new THREE.Matrix4();
-  const col = new THREE.Color();
-  bulbs.forEach(([x, z], i) => {
-    m4.makeTranslation(x, H + 0.6 + Math.sin(i) * 0.15, z);
-    bulb.setMatrixAt(i, m4);
-    bulb.setColorAt(i, col.setHex(colors[i % colors.length]));
-  });
-  root.add(bulb);
 
   // team bases
   if (mode.teams) {
@@ -504,7 +542,7 @@ export function buildLobby(skinId) {
       g.add(model);
     }
     const label = textSprite(p.label, { size: 56, bg: 'rgba(110,122,140,0.85)', height: 2.8 });
-    label.position.set(0, 9.5, 0);
+    label.position.set(0, p.id === 'wheel' ? 12.6 : 9.5, 0); // wheel is tall: keep its label clear
     g.add(label);
     root.add(g);
   }
