@@ -27,7 +27,7 @@ class Room {
   constructor(mode) {
     this.id = `${mode}-${roomSeq++}`;
     this.mode = mode;
-    this.world = new World(mode);
+    this.world = new World(mode, { viewR: 170 }); // online: tanks map-wide, shapes/bullets within 170 (bandwidth)
     this.clients = new Set();
     this.tickN = 0;
     this.emptySince = Date.now();

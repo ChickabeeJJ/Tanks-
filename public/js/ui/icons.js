@@ -61,8 +61,11 @@ if (typeof document !== 'undefined' && !document.getElementById('icol-defs')) {
   d.id = 'icol-defs';
   d.style.cssText = 'position:absolute;width:0;height:0;overflow:hidden';
   d.innerHTML = `<svg width="0" height="0"><defs>
-    <filter id="icol" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
-      <feMorphology in="SourceGraphic" operator="dilate" radius="3.6" result="d"/>
+    <filter id="icol" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <!-- round outline: small dilate + a ring of offsets (a square kernel chops sharp tips flat) -->
+      <feMorphology in="SourceGraphic" operator="dilate" radius="1.1" result="m"/>
+      <feOffset in="m" dx="2.60" dy="0.00" result="o0"/><feOffset in="m" dx="2.40" dy="0.99" result="o1"/><feOffset in="m" dx="1.84" dy="1.84" result="o2"/><feOffset in="m" dx="0.99" dy="2.40" result="o3"/><feOffset in="m" dx="0.00" dy="2.60" result="o4"/><feOffset in="m" dx="-0.99" dy="2.40" result="o5"/><feOffset in="m" dx="-1.84" dy="1.84" result="o6"/><feOffset in="m" dx="-2.40" dy="0.99" result="o7"/><feOffset in="m" dx="-2.60" dy="0.00" result="o8"/><feOffset in="m" dx="-2.40" dy="-0.99" result="o9"/><feOffset in="m" dx="-1.84" dy="-1.84" result="o10"/><feOffset in="m" dx="-0.99" dy="-2.40" result="o11"/><feOffset in="m" dx="-0.00" dy="-2.60" result="o12"/><feOffset in="m" dx="0.99" dy="-2.40" result="o13"/><feOffset in="m" dx="1.84" dy="-1.84" result="o14"/><feOffset in="m" dx="2.40" dy="-0.99" result="o15"/>
+      <feMerge result="d"><feMergeNode in="o0"/><feMergeNode in="o1"/><feMergeNode in="o2"/><feMergeNode in="o3"/><feMergeNode in="o4"/><feMergeNode in="o5"/><feMergeNode in="o6"/><feMergeNode in="o7"/><feMergeNode in="o8"/><feMergeNode in="o9"/><feMergeNode in="o10"/><feMergeNode in="o11"/><feMergeNode in="o12"/><feMergeNode in="o13"/><feMergeNode in="o14"/><feMergeNode in="o15"/></feMerge>
       <feComponentTransfer in="d" result="dk">
         <feFuncR type="linear" slope="0.36"/><feFuncG type="linear" slope="0.36"/><feFuncB type="linear" slope="0.42"/>
       </feComponentTransfer>
@@ -73,7 +76,7 @@ if (typeof document !== 'undefined' && !document.getElementById('icol-defs')) {
 
 export function ic(name, size = 24, extra = '') {
   const body = P[name] || P.star;
-  return `<svg class="ic ${extra}" width="${size}" height="${size}" viewBox="-5 -5 74 74" aria-hidden="true"><g filter="url(#icol)">${body}</g></svg>`;
+  return `<svg class="ic ${extra}" width="${size}" height="${size}" viewBox="-5 -5 74 74" overflow="visible" aria-hidden="true"><g filter="url(#icol)">${body}</g></svg>`;
 }
 
 export const STAT_ICONS = ['sword', 'bullet', 'rocket', 'reload', 'heart', 'regen', 'boot', 'spikes'];

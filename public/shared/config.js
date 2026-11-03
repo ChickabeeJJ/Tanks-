@@ -16,7 +16,7 @@ export const TEAM_NAMES = { 1: 'Blue', 2: 'Red', 3: 'Green', 4: 'Purple' };
 export const MODES = {
   ffa: { id: 'ffa', name: 'Battle', half: 195, shapes: 420, maxHumans: 10, teams: 0, desc: 'Free for all' },
   teams: { id: 'teams', name: 'Red VS Blue', half: 205, shapes: 440, maxHumans: 10, teams: 2, desc: '2 teams' },
-  four: { id: 'four', name: '4 Teams', half: 215, shapes: 470, maxHumans: 10, teams: 4, desc: '4 teams' },
+  four: { id: 'four', name: '4 Teams', half: 215, shapes: 470, maxHumans: 16, teamCap: 4, teams: 4, desc: '4 teams' },
 };
 
 // Shapes (the "farm" food). r = collision radius, dmg = contact damage per tick.
@@ -49,7 +49,7 @@ export const FX = { POP: 0, BLAST: 1, HIT: 2, DEATH: 3, LEVEL: 4, RAIL: 5 };
 // Movement response (per second). High = Roblox-like: near-instant start and stop, no ice-skating.
 export const MOVE_ACCEL = 18;
 
-// Servers: up to 10 players each; bots fill empty slots (never more than 6).
+// Servers: up to 10 players each (4 Teams: 16, max 4 per team); bots fill empty slots (never more than 6).
 export const ROOM_SIZE = 10;
 export const MAX_BOTS = 6;
 

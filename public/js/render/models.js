@@ -150,16 +150,34 @@ export function disposeTank(model) {
 }
 
 // ------------------------------------------------------------------ shapes
+// Prism with slightly rounded vertical corners and softly bevelled top/bottom edges.
+function roundedPrism(n, R, h, round, bev) {
+  const pts = [];
+  const a0 = n === 4 ? Math.PI / 4 : Math.PI / 2;
+  for (let i = 0; i < n; i++) { const a = a0 + (i / n) * Math.PI * 2; pts.push(new THREE.Vector2(Math.cos(a) * (R - bev), Math.sin(a) * (R - bev))); }
+  const side = pts[0].distanceTo(pts[1]);
+  const rc = side * round;
+  const shape = new THREE.Shape();
+  for (let i = 0; i < n; i++) {
+    const v = pts[i], pv = pts[(i + n - 1) % n], nv = pts[(i + 1) % n];
+    const p1 = v.clone().add(pv.clone().sub(v).setLength(rc));
+    const p2 = v.clone().add(nv.clone().sub(v).setLength(rc));
+    if (i === 0) shape.moveTo(p1.x, p1.y); else shape.lineTo(p1.x, p1.y);
+    shape.quadraticCurveTo(v.x, v.y, p2.x, p2.y);
+  }
+  shape.closePath();
+  const g = new THREE.ExtrudeGeometry(shape, { depth: Math.max(0.01, h - 2 * bev), bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 2, curveSegments: 3 });
+  g.rotateX(-Math.PI / 2);
+  g.translate(0, bev, 0);
+  return g;
+}
+
 export function shapeGeometry(type) {
   const s = SHAPES[type];
-  let g;
-  if (s.sides === 4) {
-    const a = s.r * 1.42;
-    g = new THREE.BoxGeometry(a, s.h * (type === 'cube' ? 0.9 : 1), a);
-  } else {
-    g = new THREE.CylinderGeometry(s.r, s.r, s.h, s.sides, 1);
-  }
-  g.translate(0, (type === 'cube' ? s.h * 0.9 : s.h) / 2 + 0.05, 0);
+  const h = type === 'cube' ? s.h * 0.9 : s.h;
+  const R = s.sides === 4 ? s.r * 1.004 : s.r;
+  const g = roundedPrism(s.sides, R, h, 0.14, Math.min(h, R) * 0.09);
+  g.translate(0, 0.05, 0);
   return g;
 }
 

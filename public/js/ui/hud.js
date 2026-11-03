@@ -49,7 +49,7 @@ export function createHUD(G) {
       <div class="rbtn big" id="b-quest">${ic('clipboard', 46)}<span class="lbl">Quest</span><span class="badge hidden"></span></div>
     </div>
     <div class="rbtn wbtn" id="b-rank"><span class="lbl rk">Rank 1</span>${ic('shield', 30)}<span class="badge hidden"></span></div>
-    <div class="rbtn wbtn" id="xpad" title="Free XP (every 3 minutes)"><span class="lbl v">+0</span>${ic('star', 30)}</div>
+    <div class="rbtn wbtn" id="xpad" title="Free XP (every 3 minutes)"><i class="cd"></i><span class="lbl v">+1,000</span>${ic('star', 30)}</div>
   </div>
   <div id="bottomleft">
     <div class="rbtn wbtn arena-only" id="b-leave" title="Return to lobby">${ic('door', 26)}<span class="lbl lv">Lobby</span></div>
@@ -88,6 +88,17 @@ export function createHUD(G) {
   click('#b-quest', () => G.menus.open('quests'));
   click('#b-rank', () => G.menus.open('rank'));
   click('#xpad', () => G.claimXp());
+  // free XP cooldown: dimmed button, draining fill and a mm:ss countdown until it is ready again
+  setInterval(() => {
+    const btn = $('#xpad', root);
+    const left = Math.max(0, (profile.d.store.xpAdAt || 0) - Date.now());
+    const cool = left > 0;
+    btn.classList.toggle('cooling', cool);
+    btn.querySelector('.cd').style.width = cool ? `${(left / 180000) * 100}%` : '0%';
+    const sec = Math.ceil(left / 1000);
+    const txt = cool ? `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}` : '+1,000';
+    if (els.xpad.textContent !== txt) els.xpad.textContent = txt;
+  }, 250);
   click('#playbtn', () => G.play('ffa'));
   click('#qbtn', () => hud.toggleQ());
   click('#ebtn', () => hud.toggleE());
@@ -157,7 +168,6 @@ export function createHUD(G) {
       els.gems.textContent = fmt(d.gems);
       els.rank.textContent = `Rank ${d.rank.idx}`;
       els.rank.parentElement.title = `${rankTier(d.rank.idx)} Rank ${d.rank.idx}`;
-      els.xpad.textContent = '+1,000';
       badge(els.giftsBadge, profile.giftsReady());
       $('#b-gifts', root).classList.toggle('ready', profile.giftsReady() > 0);
       badge(els.questBadge, profile.questsReady());

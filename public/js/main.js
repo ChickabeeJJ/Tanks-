@@ -199,9 +199,13 @@ async function boot() {
     const dt = Math.min(0.1, (now - last) / 1000);
     last = now;
     if (G.flip) {
-      G.flip.t = Math.min(1, G.flip.t + dt / 0.125); // 2x faster 180 turn
-      G.camRig.yaw = G.flip.from + (G.flip.to - G.flip.from) * G.flip.t;
-      if (G.flip.t >= 1) G.flip = null;
+      // smooth eased 180 turn: quick but with ease-in/out and a slight camera pull-back mid-turn
+      const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+      const t0 = G.flip.t;
+      G.flip.t = Math.min(1, t0 + dt / 0.26);
+      G.camRig.yaw += (ease(G.flip.t) - ease(t0)) * (G.flip.to - G.flip.from); // additive, so mouse/touch still works
+      G.camRig.bump = Math.sin(Math.PI * G.flip.t) * 0.1;
+      if (G.flip.t >= 1) { G.flip = null; G.camRig.bump = 0; }
     }
     if (G.state === 'arena' && G.arena) G.arena.update(dt);
     else if (G.state === 'lobby' && G.lobby) G.lobby.update(dt);

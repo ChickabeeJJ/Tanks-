@@ -241,58 +241,95 @@ export function createMenus(G) {
   }
 
   // ------------------------------------------------------------------ rank
+  // tier-coloured rank badge (shield with the rank number)
+  function rankBadge(idx, size, col, dim) {
+    const id = 'rb' + idx + size + (dim ? 'd' : '');
+    return `<svg class="rk-badge ${dim ? 'dim' : ''}" width="${size}" height="${size * 1.1}" viewBox="0 0 64 70">
+      <defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".9"/><stop offset=".18" stop-color="${col}"/><stop offset="1" stop-color="${col}" stop-opacity=".75"/></linearGradient></defs>
+      <path d="M32 3l26 9v19c0 17-11 29-26 36C17 60 6 48 6 31V12z" fill="#16233f"/>
+      <path d="M32 8l21 7.5v15.5c0 14-9 24-21 30C20 55 11 45 11 31V15.5z" fill="url(#${id})"/>
+      <path d="M32 8l21 7.5v15.5c0 14-9 24-21 30z" fill="#000" opacity=".12"/>
+      <text x="32" y="44" text-anchor="middle" font-size="${idx >= 10 ? 22 : 26}" font-family="inherit" font-weight="900" fill="#fff" stroke="#16233f" stroke-width="4" paint-order="stroke">${idx}</text></svg>`;
+  }
+  const TASK_ICONS = { tomorrow: 'calendar', play5: 'clock', ad: 'wheel', kill: 'skull' };
+
   function rank() {
     modal({
-      title: 'Rank', icon: 'shield',
+      title: 'Rank', icon: 'shield', wide: true,
       render(b, st) {
         const r = profile.d.rank;
         const need = rankNeed(r.idx);
         const tier = rankTier(r.idx);
         const col = RANK_COLORS[RANK_TIERS.indexOf(tier)];
-        const nextTier = rankTier(Math.min(MAX_RANK, r.idx + 1));
-        const top = h(`<div class="col">
-          <div class="center big" style="color:${col};-webkit-text-stroke:1px #16233f">${tier}</div>
-          <div class="row center" style="gap:24px">
-            <div class="center"><div class="big">Rank ${r.idx}</div>${ic('shield', 64)}</div>
-            <div style="font-size:60px;color:#f23545;font-weight:800;-webkit-text-stroke:3px #0f2a4d">&rarr;</div>
-            <div class="center"><div class="big">${r.idx >= MAX_RANK ? 'MAX' : 'Rank ' + (r.idx + 1)}</div><div style="filter:hue-rotate(${(RANK_TIERS.indexOf(nextTier)) * 50}deg)">${ic('shield', 64)}</div></div>
-            <button class="btn green stroke" id="rk-claim">Claim</button>
+        const maxed = r.idx >= MAX_RANK;
+        const nextIdx = Math.min(MAX_RANK, r.idx + 1);
+        const nextCol = RANK_COLORS[RANK_TIERS.indexOf(rankTier(nextIdx))];
+        const pct = maxed ? 100 : Math.min(100, (r.pts / need) * 100);
+        const canUp = !maxed && r.pts >= need;
+        const ready = RANK_TASKS.filter((t) => profile.rankTaskAvailable(t) > 0);
+        const msLeft = (() => { const n = new Date(); const m = new Date(n); m.setHours(24, 0, 0, 0); return m - n; })();
+        const hh = Math.floor(msLeft / 3600e3), mm = Math.floor((msLeft % 3600e3) / 60e3);
+        const root = h(`<div class="rk">
+          <div class="rk-hero" style="--tc:${col};--nc:${nextCol}">
+            <div class="rk-rays"></div>
+            <div class="rk-cur">${rankBadge(r.idx, 92, col)}<div class="rk-tier lbl">${tier}</div><div class="rk-sub">Rank ${r.idx}</div></div>
+            <div class="rk-mid">
+              <div class="rk-bar"><i style="width:${pct}%"></i><span class="lbl">${maxed ? 'MAX RANK' : `${r.pts} / ${need}`}</span></div>
+              ${maxed ? '' : `<div class="rk-reward">Rank up reward: ${ic('gem', 20)}<b>${fmt(400 * nextIdx)}</b> + ${ic('star', 20)}<b>XP</b></div>`}
+              <button class="btn ${canUp ? 'green glow' : 'gray'} rk-up">${canUp ? 'Rank Up!' : maxed ? 'Max Rank' : 'Rank Up'}</button>
+            </div>
+            <div class="rk-next">${maxed ? rankBadge(r.idx, 70, col) : rankBadge(nextIdx, 70, nextCol, !canUp)}<div class="rk-sub">${maxed ? 'Max' : 'Next: ' + rankTier(nextIdx)}</div></div>
           </div>
-          <div class="prog" style="height:26px"><div style="width:${Math.min(100, (r.pts / need) * 100)}%;background:linear-gradient(#7fd3ff,#2fa8ff)"></div><span style="font-size:16px">${r.pts}/${need}</span></div>
-          <div class="row" style="flex-wrap:wrap;justify-content:center" id="rk-tasks"></div>
-          <div class="muted center">Tasks refresh daily. Rank up to earn Gems + XP!</div></div>`);
-        b.appendChild(top);
-        const tasks = top.querySelector('#rk-tasks');
+          <div class="rk-head"><span class="lbl">Daily Tasks</span><span class="rk-reset">${ic('clock', 18)} Resets in ${hh}h ${mm}m</span>
+            ${ready.length ? `<button class="btn green rk-all">Claim All (${ready.length})</button>` : ''}</div>
+          <div class="rk-tasks"></div></div>`);
+        b.appendChild(root);
+        const list = root.querySelector('.rk-tasks');
         for (const t of RANK_TASKS) {
           const avail = profile.rankTaskAvailable(t);
           const doneN = profile.rankTaskClaimed(t.id);
           const fin = doneN >= t.max;
-          const el = h(`<div class="task ${avail > 0 ? 'ready' : fin ? 'done' : ''}">${t.max > 1 ? `<div class="muted" style="color:#fff">x${t.max - doneN}</div>` : ''}<div>${t.label}</div><div class="pts stroke-s">+${t.pts}</div></div>`);
-          el.addEventListener('click', async () => {
+          const prog = Math.min(t.max, doneN + avail);
+          const state = avail > 0 ? 'ready' : fin ? 'done' : 'todo';
+          const el = h(`<div class="rk-task ${state}">
+            <div class="rt-ic">${ic(TASK_ICONS[t.id] || 'star', 38)}</div>
+            <div class="rt-mid"><div class="rt-name lbl">${t.label}</div>
+              <div class="rt-bar"><i style="width:${(prog / t.max) * 100}%"></i><span>${prog}/${t.max}</span></div></div>
+            <div class="rt-pts lbl">+${t.pts * (avail > 0 ? avail : 1)}</div>
+            <button class="btn ${state === 'ready' ? 'green' : state === 'done' ? 'gray' : ''} rt-go">${state === 'ready' ? 'Claim' : state === 'done' ? ic('check', 22) : t.id === 'tomorrow' ? 'Soon' : 'Go'}</button></div>`);
+          el.querySelector('.rt-go').addEventListener('click', () => {
             if (avail > 0) {
               const pts = profile.claimRankTask(t);
               G.hud.toast(t.id === 'tomorrow' ? 'Claimed Tomorrow task!' : `+${pts} Rank points!`, 'green');
               Audio.reward();
               st.redraw();
-            } else if (t.id === 'ad' && !fin) {
-              close();
-              wheel();
-            } else if (t.id === 'invite' && !fin) {
-              G.invite();
-              profile.d.rank.invite = 1;
-              profile.save();
-              st.redraw();
-            } else {
-              Audio.error();
-              G.hud.toast("Task isn't completed yet!", 'red');
-            }
+            } else if (t.id === 'ad' && !fin) { close(); wheel(); }
+            else if (t.id === 'tomorrow' && !fin) { Audio.error(); G.hud.toast('Come back tomorrow to claim this!', 'blue'); }
+            else if (!fin) { close(); if (G.state === 'lobby') G.play('ffa'); }
           });
-          tasks.appendChild(el);
+          list.appendChild(el);
         }
-        top.querySelector('#rk-claim').addEventListener('click', () => {
-          const out = profile.rankUp();
-          if (out) { G.hud.toast(`Ranked up to Rank ${profile.d.rank.idx}!`, 'gold'); say(out); Audio.level(); SDK.happytime(); st.redraw(); }
-          else { Audio.error(); G.hud.toast('Not enough Rank points yet!', 'red'); }
+        const all = root.querySelector('.rk-all');
+        if (all) all.addEventListener('click', () => {
+          let pts = 0;
+          for (const t of RANK_TASKS) pts += profile.claimRankTask(t);
+          G.hud.toast(`+${pts} Rank points!`, 'green');
+          Audio.reward();
+          st.redraw();
+        });
+        root.querySelector('.rk-up').addEventListener('click', () => {
+          // claims every rank-up you can afford in one go
+          let n = 0, gems = 0, xp = 0;
+          const num = (l) => +String(l).replace(/[^0-9]/g, '') || 0;
+          for (let out; (out = profile.rankUp()); n++) {
+            for (const l of out) { if (l.includes('Gems')) gems += num(l); else if (l.includes('XP')) xp += num(l); }
+          }
+          if (n) {
+            G.hud.toast(`Ranked up to Rank ${profile.d.rank.idx}!`, 'gold');
+            say([gems && `+${gems.toLocaleString()} Gems`, xp && `+${xp.toLocaleString()} XP`].filter(Boolean));
+            Audio.level(); SDK.happytime(); st.redraw();
+          }
+          else { Audio.error(); G.hud.toast(maxed ? 'You are at max rank!' : 'Not enough Rank points yet!', 'red'); }
         });
       },
     });
@@ -927,21 +964,21 @@ export function createMenus(G) {
       title: 'Settings', icon: 'gear',
       render(b) {
         const s = profile.d.settings;
-        const signedIn = profile.d.name && profile.d.name !== 'Guest';
         const el = h(`<div class="col">
           <div class="row between box"><b>Name</b><span class="st-name">${esc(profile.d.name || 'Guest')}</span></div>
-          <div class="muted" style="margin:-4px 4px 0;text-align:right">${signedIn ? 'Your CrazyGames username' : 'Sign in on CrazyGames to use your username'}</div>
           <label class="row between box"><b>Sound</b><input id="st-sfx" type="range" min="0" max="1" step="0.05" value="${s.sfx}"></label>
           <label class="row between box"><b>Camera sensitivity</b><input id="st-sens" type="range" min="0.3" max="2.5" step="0.1" value="${s.sens}"></label>
           <label class="row between box"><b>Graphics</b><select id="st-q" style="font-family:inherit;font-size:16px"><option value="high">High</option><option value="low">Low (faster)</option></select></label>
           <label class="row between box"><b>Show names</b><input id="st-names" type="checkbox" ${s.names ? 'checked' : ''}></label>
           <div class="box muted">Controls: WASD move · Mouse aim · Click/Space shoot · Right-drag rotate camera · Scroll zoom · Q tank upgrades · E stats (1-8) · F auto fire · R auto spin · C turn 180° · Shift lock camera · Enter chat · X index · G gifts</div>
+          <div class="row center"><button class="btn green" id="st-tut">${ic('play', 22)} Replay Tutorial</button></div>
           <div class="row center"><button class="btn" id="st-pp">Privacy Policy</button><button class="btn" id="st-tos">Terms of Use</button></div></div>`);
         el.querySelector('#st-q').value = s.quality;
         el.querySelector('#st-sfx').addEventListener('input', (e) => { s.sfx = +e.target.value; Audio.setVolume(s.sfx); profile.save(); });
         el.querySelector('#st-sens').addEventListener('input', (e) => { s.sens = +e.target.value; profile.save(); });
         el.querySelector('#st-names').addEventListener('change', (e) => { s.names = e.target.checked; profile.save(); });
         el.querySelector('#st-q').addEventListener('change', (e) => { s.quality = e.target.value; profile.save(); G.hud.toast('Graphics change applies after reload', 'blue'); });
+        el.querySelector('#st-tut').onclick = () => { Audio.click(); close(); G.tut.replay(); };
         el.querySelector('#st-pp').onclick = () => legal('privacy');
         el.querySelector('#st-tos').onclick = () => legal('terms');
         b.appendChild(el);

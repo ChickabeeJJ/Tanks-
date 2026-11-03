@@ -512,7 +512,7 @@ export class Arena {
     if (G.toggles.lock && Input.locked) rig.yaw -= Input.consumeLock() * 0.0028 * sens;
     else Input.consumeLock();
     const wh = Input.consumeWheel();
-    if (wh) rig.zoom = Math.max(0.55, Math.min(1.8, rig.zoom * (wh > 0 ? 1.1 : 0.9)));
+    if (wh) rig.zoom = Math.max(0.55, Math.min(3.2, rig.zoom * (wh > 0 ? 1.1 : 0.9)));
 
     const me = this.me;
     const d = me ? derived(me.tk, me.lv, me.st) : null;

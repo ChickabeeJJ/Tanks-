@@ -83,7 +83,11 @@ export class World {
     this.grid = new Grid(12);
     this.tmp = [];
     this.maxBots = opts.botTarget ?? MAX_BOTS;
+    this.roomSize = this.mode.maxHumans || ROOM_SIZE;
+    // how far around each player the snapshot reaches (Infinity = the whole map; local servers)
+    this.viewR = opts.viewR ?? Infinity;
     this.walls = mapWalls(this.modeId, this.half);
+    this.buildNav();
     this.teamScore = [0, 0, 0, 0, 0];
     this.humans = 0;
     for (let i = 0; i < this.mode.shapes; i++) this.spawnShape(true);
@@ -138,6 +142,16 @@ export class World {
     return best;
   }
 
+  // make room on a full team-capped server: a bot gives up its slot for a joining player
+  freeTeamSlot() {
+    const cap = this.mode.teamCap;
+    if (!cap) return;
+    const counts = new Array(this.mode.teams + 1).fill(0);
+    for (const t of this.tanks.values()) if (t.team) counts[t.team]++;
+    if (Math.min(...counts.slice(1)) < cap) return;
+    for (const t of this.tanks.values()) if (t.isBot) { this.removeTank(t.id); return; }
+  }
+
   // ------------------------------------------------------------------ shapes
   pickShapeType(d01) {
     let total = 0;
@@ -188,6 +202,7 @@ export class World {
 
   // ------------------------------------------------------------------ tanks
   addTank(o = {}) {
+    if (!o.isBot) this.freeTeamSlot();
     const id = this.id();
     const owned = Array.isArray(o.owned) ? o.owned.filter((x) => TANKS[x]) : [];
     const caps = Array.from({ length: 8 }, (_, i) => clamp(Math.floor((o.caps && o.caps[i]) || BASE_CAP), BASE_CAP, MAX_CAP));
@@ -775,12 +790,88 @@ export class World {
 
   }
 
+
+  // ------------------------------------------------------------------ navigation
+  // Coarse grid over the map (walls inflated by a tank radius). Bots path-find around walls and
+  // (in team modes) around enemy bases with a cheap BFS, then follow the smoothed waypoints.
+  buildNav() {
+    const C = 6, h = this.half;
+    const N = Math.ceil((h * 2) / C);
+    this.nav = { C, N, blocked: new Uint8Array(N * N), prev: new Int32Array(N * N), q: new Int32Array(N * N) };
+    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+      const x = -h + (i + 0.5) * C, z = -h + (j + 0.5) * C;
+      if (inWall(this.walls, x, z, 3.6) || Math.abs(x) > h - 4 || Math.abs(z) > h - 4) this.nav.blocked[j * N + i] = 1;
+    }
+  }
+  navCell(x, z) {
+    const { C, N } = this.nav, h = this.half;
+    const i = clamp(Math.floor((x + h) / C), 0, N - 1), j = clamp(Math.floor((z + h) / C), 0, N - 1);
+    return j * N + i;
+  }
+  navFree(c, team) {
+    if (this.nav.blocked[c]) return false;
+    if (!this.mode.teams || !team) return true;
+    const { C, N } = this.nav, h = this.half;
+    return !this.enemyBaseAt(-h + ((c % N) + 0.5) * C, -h + (Math.floor(c / N) + 0.5) * C, team);
+  }
+  // straight line between two points crosses no wall (and no enemy base)?
+  clearLine(x0, z0, x1, z1, r = 2.5, team = 0) {
+    const d = Math.hypot(x1 - x0, z1 - z0), n = Math.ceil(d / 2.5);
+    for (let k = 1; k <= n; k++) {
+      const x = x0 + ((x1 - x0) * k) / n, z = z0 + ((z1 - z0) * k) / n;
+      if (inWall(this.walls, x, z, r)) return false;
+      if (team && this.mode.teams && this.enemyBaseAt(x, z, team)) return false;
+    }
+    return true;
+  }
+  findPath(x0, z0, x1, z1, team) {
+    const { C, N, prev, q } = this.nav, h = this.half;
+    const start = this.navCell(x0, z0);
+    let goal = this.navCell(x1, z1);
+    prev.fill(-1);
+    prev[start] = start;
+    let head = 0, tail = 0, best = start, bestD = 1e9;
+    q[tail++] = start;
+    const gi = goal % N, gj = Math.floor(goal / N);
+    while (head < tail) {
+      const c = q[head++];
+      const ci = c % N, cj = Math.floor(c / N);
+      const dd = Math.abs(ci - gi) + Math.abs(cj - gj);
+      if (dd < bestD) { bestD = dd; best = c; if (dd === 0) break; }
+      for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) {
+        if (!di && !dj) continue;
+        const ni = ci + di, nj = cj + dj;
+        if (ni < 0 || nj < 0 || ni >= N || nj >= N) continue;
+        const nc = nj * N + ni;
+        if (prev[nc] !== -1 || !this.navFree(nc, team)) continue;
+        if (di && dj && (!this.navFree(cj * N + ni, team) || !this.navFree(nj * N + ci, team))) continue; // no corner cutting
+        prev[nc] = c;
+        q[tail++] = nc;
+      }
+    }
+    goal = best; // unreachable goal -> closest reachable cell
+    const cells = [];
+    for (let c = goal, g = 0; c !== start && g < N * N; c = prev[c], g++) cells.push(c);
+    cells.reverse();
+    const pts = cells.map((c) => ({ x: -h + ((c % N) + 0.5) * C, z: -h + (Math.floor(c / N) + 0.5) * C }));
+    if (bestD === 0) pts.push({ x: x1, z: z1 });
+    return pts;
+  }
+  // random reachable spot (not in a wall / enemy base)
+  freeSpot(team, spread = 0.8) {
+    for (let k = 0; k < 20; k++) {
+      const x = (rand() * 2 - 1) * this.half * spread, z = (rand() * 2 - 1) * this.half * spread;
+      if (this.navFree(this.navCell(x, z), team)) return { x, z };
+    }
+    return { x: 0, z: 0 };
+  }
+
   // ------------------------------------------------------------------ bots
   manageBots() {
     let bots = 0;
     for (const t of this.tanks.values()) if (t.isBot) bots++;
     // server population: 7 tanks total, bots fill empty slots (at most 6)
-    const want = Math.max(0, Math.min(this.maxBots, ROOM_SIZE - this.humans));
+    const want = Math.max(0, Math.min(this.maxBots, this.roomSize - this.humans));
     if (bots < want) this.addBot();
     else if (bots > want) {
       let victim = null;
@@ -806,10 +897,11 @@ export class World {
   initBotBrain(t) {
     t.bot = {
       next: 0, mx: 0, mz: 0, aimT: rand() * TAU, fire: false, strafe: rand() < 0.5 ? 1 : -1, strafeT: 0,
-      wx: (rand() * 2 - 1) * this.half * 0.7, wz: (rand() * 2 - 1) * this.half * 0.7,
+      wx: 0, wz: 0, path: null, pathT: 0, pgx: 0, pgz: 0, lx: t.x, lz: t.z, chkT: this.time + 1.5, unstuck: 0,
       build: BOT_BUILDS[Math.floor(rand() * BOT_BUILDS.length)], skill: 0.45 + rand() * 0.5,
       upT: this.time + 1 + rand() * 4, target: null,
     };
+    const w = this.freeSpot(t.team, 0.7); t.bot.wx = w.x; t.bot.wz = w.z;
   }
 
   botThink(t) {
@@ -887,18 +979,40 @@ export class World {
       desired = melee ? 0 : def.cls === 'Flame' ? 6 : 12 + shape.r;
       fire = true;
     } else if (Math.hypot(b.wx - t.x, b.wz - t.z) < 10) {
-      b.wx = (rand() * 2 - 1) * this.half * 0.75;
-      b.wz = (rand() * 2 - 1) * this.half * 0.75;
+      const w = this.freeSpot(t.team, 0.8); b.wx = w.x; b.wz = w.z; b.path = null;
     }
 
-    let dx = tx - t.x, dz = tz - t.z;
-    const dist = Math.hypot(dx, dz) || 1;
-    dx /= dist; dz /= dist;
+    // stuck check: wanted to move but barely moved -> new destination + short sidestep
+    if (now > b.chkT) {
+      const moved = Math.hypot(t.x - b.lx, t.z - b.lz);
+      if (moved < 3 && Math.hypot(b.mx, b.mz) > 0.5) {
+        const w = this.freeSpot(t.team, 0.8); b.wx = w.x; b.wz = w.z; b.path = null;
+        b.unstuck = now + 0.8; b.ux = rand() * 2 - 1; b.uz = rand() * 2 - 1;
+      }
+      b.lx = t.x; b.lz = t.z; b.chkT = now + 1.5;
+    }
+
     let mx = 0, mz = 0;
-    if (flee) { mx = dx; mz = dz; }
-    else if (dist > desired + 3) { mx = dx; mz = dz; }
-    else if (dist < desired - 3) { mx = -dx; mz = -dz; }
-    if (aimX !== null && !flee && desired > 0) { mx += -dz * b.strafe * 0.6; mz += dx * b.strafe * 0.6; }
+    if (b.unstuck > now) { mx = b.ux; mz = b.uz; }
+    else if (!flee && !this.clearLine(t.x, t.z, tx, tz, t.r + 0.5, t.team)) {
+      // target is behind a wall: follow a path around it
+      if (!b.path || now > b.pathT || Math.hypot(b.pgx - tx, b.pgz - tz) > 10) {
+        b.path = this.findPath(t.x, t.z, tx, tz, t.team); b.pathT = now + 2; b.pgx = tx; b.pgz = tz;
+      }
+      while (b.path.length > 1 && (Math.hypot(b.path[0].x - t.x, b.path[0].z - t.z) < 4 || this.clearLine(t.x, t.z, b.path[1].x, b.path[1].z, t.r + 0.5, t.team))) b.path.shift();
+      const wp = b.path[0] || { x: tx, z: tz };
+      const wd = Math.hypot(wp.x - t.x, wp.z - t.z) || 1;
+      mx = (wp.x - t.x) / wd; mz = (wp.z - t.z) / wd;
+    } else {
+      b.path = null;
+      let dx = tx - t.x, dz = tz - t.z;
+      const dist = Math.hypot(dx, dz) || 1;
+      dx /= dist; dz /= dist;
+      if (flee) { mx = dx; mz = dz; }
+      else if (dist > desired + 3) { mx = dx; mz = dz; }
+      else if (dist < desired - 3) { mx = -dx; mz = -dz; }
+      if (aimX !== null && !flee && desired > 0) { mx += -dz * b.strafe * 0.6; mz += dx * b.strafe * 0.6; }
+    }
     // walls + enemy bases
     const h = this.half;
     if (t.x < -h + 12) mx += 1;
@@ -924,6 +1038,8 @@ export class World {
     } else {
       b.aimT += 0.4;
     }
+    // don't waste shots into a wall
+    if (fire && aimX !== null && !this.clearLine(t.x, t.z, aimX, aimZ, 0)) fire = false;
     b.fire = fire && def.barrels.length > 0;
   }
 
@@ -939,7 +1055,7 @@ export class World {
     const v = this.tanks.get(viewerId);
     if (!v) return null;
     if (!cs.info) { cs.info = new Map(); cs.fxTick = this.tick - 1; cs.chatId = this.chatId; }
-    const R = 72 * (v.d.fov || 1) + 10;
+    const R = this.viewR; // shapes/bullets/effects range; every tank on the map is always sent
     const cx = v.x, cz = v.z;
     const now = this.time;
     const tk = [], sh = [], bl = [], fx = [];
@@ -947,7 +1063,6 @@ export class World {
     for (const t of this.tanks.values()) {
       if (!t.alive) continue;
       if (t !== v) {
-        if (Math.abs(t.x - cx) > R || Math.abs(t.z - cz) > R) continue;
         if (t.stealth && (!this.mode.teams || t.team !== v.team) && Math.hypot(t.x - cx, t.z - cz) > 12) continue;
       }
       const flags = (t.shieldUntil > now ? 1 : 0) | (t.stealth ? 2 : 0) | (t.slowUntil > now ? 4 : 0);

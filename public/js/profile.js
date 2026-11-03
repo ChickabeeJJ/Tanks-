@@ -53,7 +53,6 @@ export const RANK_TASKS = [
   { id: 'tomorrow', label: 'Join Tomorrow', pts: 250, max: 1 },
   { id: 'play5', label: 'Play for 5 mins', pts: 15, max: 4 },
   { id: 'ad', label: 'Spin the Wheel', pts: 150, max: 1 },
-  { id: 'invite', label: 'Invite a Friend', pts: 50, max: 1 },
   { id: 'kill', label: 'Get a Kill', pts: 20, max: 5 },
 ];
 
@@ -283,7 +282,7 @@ export const profile = {
     return r[id] || 0;
   },
   rankTaskClaimed(id) { return this.d.rank['c_' + id] === this.d.rank.day ? this.d.rank['n_' + id] || 0 : 0; },
-  rankTaskAvailable(t) { return this.rankTaskCount(t.id) - this.rankTaskClaimed(t.id); },
+  rankTaskAvailable(t) { return Math.max(0, this.rankTaskCount(t.id) - this.rankTaskClaimed(t.id)); },
   claimRankTask(t) {
     const avail = this.rankTaskAvailable(t);
     if (avail <= 0) return 0;

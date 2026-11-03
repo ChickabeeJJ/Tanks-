@@ -16,8 +16,9 @@ import { SKIN_IDS } from '../shared/skins.js';
 // wander, or just sit AFK. Purely visual (client-side).
 const NPC_TANKS = ['default', 'default', 'default', 'double', 'scout', 'spammer', 'side', 'triway', 'hitman', 'grinder', 'flame'];
 class LobbyNpc {
-  constructor(root) {
+  constructor(root, lobby, fromPortal) {
     this.root = root;
+    this.lobby = lobby;
     const skin = Math.random() < 0.45 ? 'default' : SKIN_IDS[1 + Math.floor(Math.random() * (SKIN_IDS.length - 1))];
     this.model = buildTank(NPC_TANKS[Math.floor(Math.random() * NPC_TANKS.length)], skin);
     this.g = new THREE.Group();
@@ -25,9 +26,17 @@ class LobbyNpc {
     this.label = textSprite(botName(), { size: 38, height: 1.4 });
     this.label.position.y = this.model.R * 1.2 + 2.4;
     this.g.add(this.label);
-    const a = Math.random() * Math.PI * 2;
-    this.x = Math.cos(a) * 6; this.z = Math.sin(a) * 6;
+    if (fromPortal) {
+      // just came back from a match: step out of a portal
+      const po = LOBBY.portals[Math.floor(Math.random() * LOBBY.portals.length)];
+      this.x = po.x * 0.82; this.z = po.z - 6;
+    } else {
+      const p = freeLobbySpot();
+      this.x = p.x; this.z = p.z;
+    }
+    this.vx = 0; this.vz = 0;
     this.aim = Math.random() * 6.28;
+    this.head = this.aim;
     this.spawnT = 0;
     this.leaving = 0;
     this.g.scale.setScalar(0.01);
@@ -37,12 +46,16 @@ class LobbyNpc {
   next() {
     const r = Math.random();
     this.wait = 0;
-    if (r < 0.35) { const po = LOBBY.portals[Math.floor(Math.random() * LOBBY.portals.length)]; this.goal = { x: po.x, z: po.z, kind: 'portal' }; }
-    else if (r < 0.6) { const pad = LOBBY.pads[Math.floor(Math.random() * LOBBY.pads.length)]; this.goal = { x: pad.x + (Math.random() - 0.5) * 3, z: pad.z + (Math.random() - 0.5) * 3, kind: 'pad', stay: 3 + Math.random() * 5 }; }
-    else if (r < 0.82) { this.goal = { x: (Math.random() * 2 - 1) * 30, z: (Math.random() * 2 - 1) * 26, kind: 'wander' }; }
-    else this.goal = { kind: 'afk', stay: 5 + Math.random() * 9 };
+    if (r < 0.3) { const po = LOBBY.portals[Math.floor(Math.random() * LOBBY.portals.length)]; this.goal = { x: po.x, z: po.z - 1, kind: 'portal', id: po.id }; }
+    else if (r < 0.58) {
+      // stand on the near edge of a shop pad (like a player opening the shop), not on its prop
+      const pad = LOBBY.pads[Math.floor(Math.random() * LOBBY.pads.length)];
+      const d = Math.hypot(pad.x, pad.z) || 1, k = (LOBBY.padR * 0.55) / d;
+      this.goal = { x: pad.x - pad.x * k + (Math.random() - 0.5) * 2, z: pad.z - pad.z * k + (Math.random() - 0.5) * 2, kind: 'pad', stay: 3 + Math.random() * 5 };
+    } else if (r < 0.84) { const p = freeLobbySpot(); this.goal = { x: p.x, z: p.z, kind: 'wander' }; }
+    else this.goal = { kind: 'afk', stay: 4 + Math.random() * 8 };
   }
-  update(dt, t) {
+  update(dt, others) {
     this.spawnT = Math.min(1, this.spawnT + dt * 2.5);
     let scale = this.spawnT;
     if (this.leaving) {
@@ -51,24 +64,50 @@ class LobbyNpc {
       if (this.leaving > 0.55) return false; // gone into the portal
     }
     const G = this.goal;
+    let wx = 0, wz = 0, speed = 0;
     if (G.kind === 'afk' || this.wait > 0) {
       this.wait = this.wait > 0 ? this.wait - dt : 0;
       if (G.kind === 'afk') { G.stay -= dt; this.aim += dt * 0.6; if (G.stay <= 0) this.next(); }
       else if (this.wait <= 0) this.next();
     } else if (!this.leaving) {
       const dx = G.x - this.x, dz = G.z - this.z, d = Math.hypot(dx, dz);
-      if (d < 1.2) {
+      if (d < 1.4) {
         if (G.kind === 'portal') this.leaving = 0.001;
         else if (G.kind === 'pad') this.wait = G.stay;
         else this.next();
       } else {
-        const sp = 15 * Math.min(1, d / 3);
-        this.x += (dx / d) * sp * dt;
-        this.z += (dz / d) * sp * dt;
-        const want = Math.atan2(dz, dx);
-        let da = ((want - this.aim + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
-        this.aim += Math.max(-dt * 6, Math.min(dt * 6, da));
+        wx = dx / d; wz = dz / d;
+        speed = 15 * Math.min(1, d / 5); // slow down on arrival
+        // steer around obstacles: other portals, shop props, other tanks
+        for (const o of obstaclesFor(this, others)) {
+          const ox = this.x - o.x, oz = this.z - o.z, od = Math.hypot(ox, oz) || 0.01;
+          const R = o.r + 3.5;
+          if (od > R) continue;
+          const push = (R - od) / R;
+          wx += (ox / od) * push * 2.2;
+          wz += (oz / od) * push * 2.2;
+          // slide round it on the side the goal is on
+          const side = Math.sign(-oz * dx + ox * dz) || 1;
+          wx += (-oz / od) * side * push * 1.2;
+          wz += (ox / od) * side * push * 1.2;
+        }
+        const m = Math.hypot(wx, wz) || 1;
+        wx /= m; wz /= m;
       }
+    }
+    // smooth acceleration; slow down while turning sharply
+    const turnDa = ((Math.atan2(wz, wx) - this.head + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    if (speed > 0) { this.head += Math.max(-dt * 7, Math.min(dt * 7, turnDa)); speed *= 0.45 + 0.55 * Math.max(0, Math.cos(turnDa)); }
+    const k = Math.min(1, dt * 6);
+    this.vx += (Math.cos(this.head) * speed - this.vx) * k;
+    this.vz += (Math.sin(this.head) * speed - this.vz) * k;
+    this.x += this.vx * dt; this.z += this.vz * dt;
+    const H = LOBBY.half - 3;
+    this.x = Math.max(-H, Math.min(H, this.x)); this.z = Math.max(-H, Math.min(H, this.z));
+    // turret looks where it is going (with a little idle look-around)
+    if (speed > 0.5) {
+      const da = ((this.head - this.aim + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+      this.aim += Math.max(-dt * 5, Math.min(dt * 5, da));
     }
     this.g.position.set(this.x, 0, this.z);
     this.g.scale.setScalar(scale);
@@ -81,6 +120,23 @@ class LobbyNpc {
     this.label.material.map.dispose();
     this.label.material.dispose();
   }
+}
+
+// obstacles an NPC should walk around (everything except the portal it is heading into)
+function obstaclesFor(npc, others) {
+  const list = [];
+  for (const po of LOBBY.portals) if (!(npc.goal && npc.goal.id === po.id)) list.push({ x: po.x, z: po.z, r: po.big ? 7.5 : 6 });
+  for (const pad of LOBBY.pads) list.push({ x: pad.x, z: pad.z, r: 2.6 });
+  for (const o of others) if (o !== npc) list.push({ x: o.x, z: o.z, r: 2.2 });
+  return list;
+}
+function freeLobbySpot() {
+  for (let k = 0; k < 30; k++) {
+    const x = (Math.random() * 2 - 1) * 30, z = (Math.random() * 2 - 1) * 24;
+    const bad = LOBBY.portals.some((p) => Math.hypot(p.x - x, p.z - z) < 10) || LOBBY.pads.some((p) => Math.hypot(p.x - x, p.z - z) < 8);
+    if (!bad) return { x, z };
+  }
+  return { x: 0, z: 0 };
 }
 
 export class Lobby {
@@ -112,14 +168,22 @@ export class Lobby {
 
   setSkin() { this.makeTank(); }
 
+  // there are always 2-3 other players hanging around the lobby
   updateNpcs(dt) {
-    if (!this.npcs) { this.npcs = []; this.npcTimer = 2 + Math.random() * 3; this.npcWant = 1 + (Math.random() < 0.5 ? 1 : 0); }
-    this.npcs = this.npcs.filter((n) => { const alive = n.update(dt, this.t); if (!alive) n.dispose(); return alive; });
+    if (!this.npcs) {
+      this.npcs = [];
+      this.npcWant = 2 + (Math.random() < 0.5 ? 1 : 0);
+      for (let i = 0; i < this.npcWant; i++) this.npcs.push(new LobbyNpc(this.env.root, this, false));
+      this.npcTimer = 3;
+    }
+    const others = [...this.npcs, { x: this.pos.x, z: this.pos.z }];
+    this.npcs = this.npcs.filter((n) => { const alive = n.update(dt, others); if (!alive) n.dispose(); return alive; });
     this.npcTimer -= dt;
+    if (this.npcs.length < 2 && this.npcTimer > 2.5) this.npcTimer = 1.5 + Math.random();
     if (this.npcTimer <= 0) {
-      this.npcTimer = 6 + Math.random() * 10;
-      this.npcWant = 1 + (Math.random() < 0.5 ? 1 : 0);
-      if (this.npcs.length < this.npcWant) this.npcs.push(new LobbyNpc(this.env.root));
+      this.npcTimer = 5 + Math.random() * 8;
+      this.npcWant = 2 + (Math.random() < 0.5 ? 1 : 0);
+      if (this.npcs.length < this.npcWant) this.npcs.push(new LobbyNpc(this.env.root, this, true));
     }
   }
 
@@ -145,7 +209,7 @@ export class Lobby {
     if (G.toggles.lock && Input.locked) rig.yaw -= Input.consumeLock() * 0.0028 * sens;
     else Input.consumeLock();
     const wh = Input.consumeWheel();
-    if (wh) rig.zoom = Math.max(0.55, Math.min(1.8, rig.zoom * (wh > 0 ? 1.1 : 0.9)));
+    if (wh) rig.zoom = Math.max(0.55, Math.min(3.2, rig.zoom * (wh > 0 ? 1.1 : 0.9)));
 
     const typing = document.activeElement && document.activeElement.tagName === 'INPUT';
     const fw = rig.forward(), rt = rig.right();

@@ -30,7 +30,7 @@ export class Tutorial {
         art: m
           ? '<div class="tut-drag"><div class="pad"></div><div class="finger"></div></div>'
           : `<div class="tut-keys"><div>${KEY('W')}</div><div>${KEY('A')}${KEY('S')}${KEY('D')}</div></div>`,
-        text: m ? 'Touch and drag on the <b>left side</b> of the screen' : 'Use <b>W A S D</b> to drive',
+        text: m ? 'Drag the <b>joystick</b> in the bottom left' : 'Use <b>W A S D</b> to drive',
       },
       portal: {
         title: 'Head into battle',
@@ -50,7 +50,7 @@ export class Tutorial {
         art: m
           ? '<div class="tut-drag right"><div class="pad"></div><div class="finger"></div></div>'
           : '<div class="tut-mouse"><div class="btnL"></div></div>',
-        text: m ? 'Drag on the <b>right side</b> to aim and shoot' : 'Aim with the mouse, <b>hold Left Click</b> to shoot',
+        text: m ? 'Drag the <b>right joystick</b> to aim and shoot' : 'Aim with the mouse, <b>hold Left Click</b> to shoot',
       },
       upgrade: {
         title: 'Get stronger',
@@ -87,16 +87,27 @@ export class Tutorial {
     if (!skipped) { this.G.hud.toast("You're ready! Have fun!", 'gold', 2600); Audio.reward(); }
   }
 
+  // replay from Settings: start over from the step that fits where the player is
+  replay() {
+    profile.d.tutorialDone = false;
+    profile.saveNow();
+    this.step = null; this.moveT = 0; this.fireT = 0;
+    this.clearArrows();
+    if (this.G.state === 'arena') this.enterArena(); else this.enterLobby();
+  }
+
   // ---------------------------------------------------------------- lifecycle hooks
   enterLobby() {
     if (this.done) return;
     this.startPos = null;
+    this.moveT = 0;
     this.show(this.step === 'portal' ? 'portal' : 'move');
   }
   enterArena() {
     if (this.done) return;
     this.clearArrows();
     this.shapes0 = profile.d.totalShapes;
+    this.fireT = 0;
     this.show('shoot');
   }
 
@@ -112,7 +123,10 @@ export class Tutorial {
       const p = G.lobby.pos;
       if (this.step === 'move') {
         if (!this.startPos) this.startPos = { x: p.x, z: p.z };
-        if (Math.hypot(p.x - this.startPos.x, p.z - this.startPos.z) > 7 || this.t > 9) { Audio.click(); this.show('portal'); }
+        // very forgiving: any short bit of driving (or a few seconds) completes it
+        const ax = Input.moveAxes();
+        if (Math.abs(ax.f) + Math.abs(ax.r) > 0.1) this.moveT = (this.moveT || 0) + dt;
+        if (Math.hypot(p.x - this.startPos.x, p.z - this.startPos.z) > 2.5 || (this.moveT || 0) > 0.35 || this.t > 6) { Audio.click(); this.show('portal'); }
       }
       if (this.step === 'portal') {
         const po = LOBBY.portals.find((x) => x.id === 'ffa');
@@ -123,9 +137,9 @@ export class Tutorial {
       if (this.step === 'shoot') {
         this.pointAtShape(a, dt);
         if (Input.firing() || G.toggles.autoFire || G.toggles.autoSpin) this.fireT = (this.fireT || 0) + dt;
-        if (profile.d.totalShapes - this.shapes0 >= 1 || (this.fireT || 0) > 2.5 || this.t > 10) { this.clearArrows(); Audio.click(); this.show('upgrade'); this.sp0 = a.me.sp; }
+        if (profile.d.totalShapes - this.shapes0 >= 1 || (this.fireT || 0) > 1.2 || this.t > 8) { this.clearArrows(); Audio.click(); this.show('upgrade'); this.sp0 = a.me.sp; }
       } else if (this.step === 'upgrade') {
-        if (G.hud.eOpen || G.hud.qOpen || a.me.sp < this.sp0 || this.t > 14) this.finish(false);
+        if (G.hud.eOpen || G.hud.qOpen || a.me.sp < this.sp0 || this.t > 10) this.finish(false);
       }
     }
   }

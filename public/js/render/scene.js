@@ -19,7 +19,7 @@ export function createRenderer(canvas, quality = 'high') {
 
   const scene = new THREE.Scene();
   scene.background = skyTexture();
-  scene.fog = new THREE.Fog(0xc4e2ff, 240, 900); // long render distance
+  scene.fog = new THREE.Fog(0xc4e2ff, 700, 2600); // effectively unlimited render distance (soft haze only at the horizon)
 
   // image-based lighting from the sky: soft reflections + natural fill
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -53,7 +53,7 @@ export function createRenderer(canvas, quality = 'high') {
   rim.position.set(-40, 30, -50);
   scene.add(rim);
 
-  const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 2000);
+  const camera = new THREE.PerspectiveCamera(60, 1, 0.5, 6000);
   const ambience = createAmbience(scene);
   const post = high ? new Post(renderer, touch ? 0 : 4) : null;
   // cinematic skybox replaces the flat gradient background
@@ -155,6 +155,7 @@ export class CameraRig {
     this.target = new THREE.Vector3();
     this.cur = new THREE.Vector3();
     this.flipT = 0;
+    this.bump = 0;
   }
   forward() { return { x: -Math.sin(this.yaw), z: -Math.cos(this.yaw) }; }
   right() { return { x: Math.cos(this.yaw), z: -Math.sin(this.yaw) }; }
@@ -162,7 +163,7 @@ export class CameraRig {
   update(dt, x, z, fov = 1) {
     this.target.set(x, 0, z);
     this.cur.lerp(this.target, 1 - Math.exp(-dt * 14));
-    const d = this.dist * this.zoom * (0.85 + 0.15 * fov) * fov;
+    const d = this.dist * this.zoom * (0.85 + 0.15 * fov) * fov * (1 + this.bump);
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     this.camera.position.set(this.cur.x + Math.sin(this.yaw) * cp * d, sp * d + 1, this.cur.z + Math.cos(this.yaw) * cp * d);
     this.camera.lookAt(this.cur.x, 2.5, this.cur.z);
@@ -553,22 +554,31 @@ export function buildLobby(skinId) {
     g.position.set(p.x, 0, p.z);
     g.lookAt(0, 0, 0);
     const s = (p.big ? 1.35 : 1) * 1.5; // bigger portals
-    const arch = new THREE.Mesh(new THREE.TorusGeometry(4.6 * s, 0.9 * s, 12, 32, Math.PI), new THREE.MeshStandardMaterial({ color: p.color, roughness: 0.4 }));
+    // vivid, self-lit portal: saturated emissive arches + an HDR inner rim (picked up by bloom)
+    const c1 = new THREE.Color(p.color), c2 = new THREE.Color(p.color2);
+    const vivid = (c) => { const hsl = {}; c.getHSL(hsl); return new THREE.Color().setHSL(hsl.h, 1, Math.min(0.56, Math.max(0.46, hsl.l))); };
+    const v1 = vivid(c1), v2 = vivid(c2);
+    const archM = new THREE.MeshStandardMaterial({ color: v1, emissive: v1, emissiveIntensity: 0.38, roughness: 0.28, metalness: 0.05 });
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(4.6 * s, 0.9 * s, 14, 40, Math.PI), archM);
     arch.castShadow = true;
-    const arch2 = new THREE.Mesh(new THREE.TorusGeometry(3.7 * s, 0.35 * s, 8, 32, Math.PI), new THREE.MeshStandardMaterial({ color: p.color2, roughness: 0.4 }));
+    const arch2 = new THREE.Mesh(new THREE.TorusGeometry(3.7 * s, 0.35 * s, 10, 40, Math.PI), new THREE.MeshStandardMaterial({ color: v2, emissive: v2, emissiveIntensity: 0.55, roughness: 0.3 }));
+    const rimM = new THREE.MeshBasicMaterial({ color: v2.clone().multiplyScalar(1.9), toneMapped: false });
+    const rimG = new THREE.Mesh(new THREE.TorusGeometry(3.3 * s, 0.1 * s, 6, 48, Math.PI), rimM);
     for (const side of [-1, 1]) {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(1.8 * s, 1, 1.8 * s), new THREE.MeshStandardMaterial({ color: p.color }));
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(1.8 * s, 1, 1.8 * s), new THREE.MeshStandardMaterial({ color: v1, emissive: v1, emissiveIntensity: 0.3, roughness: 0.3 }));
       leg.position.set(side * 4.6 * s, 0.5, 0);
       g.add(leg);
     }
-    const fill = new THREE.Mesh(new THREE.CircleGeometry(3.7 * s, 32, 0, Math.PI), new THREE.MeshBasicMaterial({ color: p.color, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false }));
-    g.add(arch, arch2, fill);
+    const fill = new THREE.Mesh(new THREE.CircleGeometry(3.7 * s, 40, 0, Math.PI), new THREE.MeshBasicMaterial({ color: v1.clone().lerp(new THREE.Color(0xffffff), 0.15), transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
+    const core = new THREE.Mesh(new THREE.CircleGeometry(2.4 * s, 32, 0, Math.PI), new THREE.MeshBasicMaterial({ color: v2.clone().multiplyScalar(1.4), transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
+    core.position.z = 0.05;
+    g.add(arch, arch2, rimG, fill, core);
     const label = textSprite(p.label, { size: 56, height: 2.2 * s });
     label.position.set(0, 7.2 * s, 0);
     const sub = textSprite(p.sub, { size: 40, height: 1.4 * 1.4, color: '#fff7a8' });
     sub.position.set(0, 5.6 * s + 0.3, 0);
     g.add(label, sub);
-    anim.push((t) => { fill.material.opacity = 0.35 + Math.sin(t * 3 + p.x) * 0.12; });
+    anim.push((t) => { fill.material.opacity = 0.5 + Math.sin(t * 3 + p.x) * 0.12; core.material.opacity = 0.35 + Math.sin(t * 4.2 + p.x) * 0.18; });
     root.add(g);
   }
 

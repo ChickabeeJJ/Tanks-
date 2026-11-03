@@ -187,22 +187,29 @@ export function skinTexture(skinId) {
 }
 
 export function skinPreview(skinId, size = 96) {
-  const key = 'skinprev:' + skinId + size;
+  const key = 'skinprev2:' + skinId + size;
   if (cache.has(key)) return cache.get(key);
   const skin = SKIN_MAP[skinId] || SKIN_MAP.default;
   const tmp = canvas(256, 128);
   drawSkin(tmp.getContext('2d'), 256, 128, skin);
-  const c = canvas(size, size);
+  const S = size * 2; // rendered at 2x for crisp icons on hi-dpi screens
+  const c = canvas(S, S);
   const ctx = c.getContext('2d');
+  const R = S * 0.43;
   ctx.save();
-  ctx.beginPath(); ctx.arc(size / 2, size / 2, size * 0.42, 0, Math.PI * 2); ctx.clip();
-  ctx.drawImage(tmp, 128 - 64, 0, 128, 128, 0, 0, size, size);
-  const g = ctx.createRadialGradient(size * 0.35, size * 0.3, 2, size / 2, size / 2, size * 0.45);
-  g.addColorStop(0, 'rgba(255,255,255,0.45)'); g.addColorStop(1, 'rgba(0,0,0,0.25)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, size, size);
+  ctx.beginPath(); ctx.arc(S / 2, S / 2, R, 0, Math.PI * 2); ctx.clip();
+  ctx.filter = 'saturate(1.75) contrast(1.12) brightness(1.06)'; // vivid, punchy colours
+  ctx.drawImage(tmp, 128 - 64, 0, 128, 128, 0, 0, S, S);
+  ctx.filter = 'none';
+  // glossy dome lighting: bright top-left highlight, light shade bottom-right
+  const g = ctx.createRadialGradient(S * 0.34, S * 0.28, 1, S / 2, S / 2, R * 1.05);
+  g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(0.35, 'rgba(255,255,255,0.08)'); g.addColorStop(1, 'rgba(0,0,30,0.16)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
+  ctx.beginPath(); ctx.ellipse(S * 0.38, S * 0.27, R * 0.38, R * 0.18, -0.5, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill();
   ctx.restore();
-  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.35)';
-  ctx.beginPath(); ctx.arc(size / 2, size / 2, size * 0.42, 0, Math.PI * 2); ctx.stroke();
+  ctx.lineWidth = S * 0.035; ctx.strokeStyle = 'rgba(10,25,60,0.45)';
+  ctx.beginPath(); ctx.arc(S / 2, S / 2, R, 0, Math.PI * 2); ctx.stroke();
   const url = c.toDataURL();
   cache.set(key, url);
   return url;
