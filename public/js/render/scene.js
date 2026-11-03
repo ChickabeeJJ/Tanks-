@@ -570,15 +570,17 @@ export function buildLobby(skinId) {
       g.add(leg);
     }
     const fill = new THREE.Mesh(new THREE.CircleGeometry(3.7 * s, 40, 0, Math.PI), new THREE.MeshBasicMaterial({ color: v1.clone().lerp(new THREE.Color(0xffffff), 0.15), transparent: true, opacity: 0.6, side: THREE.DoubleSide, depthWrite: false, toneMapped: false }));
-    const core = new THREE.Mesh(new THREE.CircleGeometry(2.4 * s, 32, 0, Math.PI), new THREE.MeshBasicMaterial({ color: v2.clone().multiplyScalar(1.4), transparent: true, opacity: 0.5, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false }));
-    core.position.z = 0.05;
-    g.add(arch, arch2, rimG, fill, core);
-    const label = textSprite(p.label, { size: 56, height: 2.2 * s });
-    label.position.set(0, (p.big ? 6.4 : 7.2) * s, 0); // big portal sign a little lower so the top HUD never covers it
+    g.add(arch, arch2, rimG, fill);
+    const label = textSprite(p.label, { size: 56, height: 2.2 * Math.min(s, 1.6) });
+    // signs sit fully above the arch and draw on top, so the arch can never cut them off
+    const archTop = 5.5 * s;
+    label.position.set(0, archTop + (p.big ? 3.4 : 4.0), 0);
+    label.renderOrder = 10; label.material.depthTest = false;
     const sub = textSprite(p.sub, { size: 40, height: 1.4 * 1.4, color: '#fff7a8' });
-    sub.position.set(0, (p.big ? 5.0 : 5.6) * s + 0.3, 0);
+    sub.position.set(0, archTop + 1.15, 0);
+    sub.renderOrder = 10; sub.material.depthTest = false;
     g.add(label, sub);
-    anim.push((t) => { fill.material.opacity = 0.52 + Math.sin(t * 1.2 + p.x) * 0.05; core.material.opacity = 0.38 + Math.sin(t * 1.5 + p.x) * 0.07; }); // gentle breathing
+    anim.push((t) => { fill.material.opacity = 0.52 + Math.sin(t * 1.2 + p.x) * 0.05; }); // gentle breathing
     root.add(g);
   }
 

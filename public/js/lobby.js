@@ -157,6 +157,7 @@ export class Lobby {
     G.scene.add(this.env.root);
     this.makeTank();
     G.camRig.yaw = Math.PI; // camera looks toward the portals (not the chest)
+    G.camRig.pitch = 0.36; // flatter view so the portal signs sit below the top HUD
     this.aim = Math.PI / 2;
     G.camRig.snap(this.pos.x, this.pos.z);
   }
