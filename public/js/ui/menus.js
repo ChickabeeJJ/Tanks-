@@ -631,19 +631,19 @@ export function createMenus(G) {
     WHEEL.forEach((sg, i) => {
       const a0 = i * step, a1 = (i + 1) * step;
       const [x0, y0] = pt(R, a0), [x1, y1] = pt(R, a1);
-      const [u0, v0] = pt(R * 0.62, a0), [u1, v1] = pt(R * 0.62, a1);
       segs += `<path d="M${C} ${C}L${x0} ${y0}A${R} ${R} 0 0 1 ${x1} ${y1}Z" fill="${sg.color}"/>`;
-      segs += `<path d="M${u0} ${v0}A${R * 0.62} ${R * 0.62} 0 0 1 ${u1} ${v1}L${x1} ${y1}A${R} ${R} 0 0 0 ${x0} ${y0}Z" fill="${shade(sg.color, 1.12)}"/>`;
       segs += `<path d="M${C} ${C}L${x0} ${y0}" stroke="${shade(sg.color, 0.55)}" stroke-width="3"/>`;
       const mid = a0 + step / 2;
       const [ix, iy] = pt(R * 0.74, mid);
       const icon = sg.tank
         ? `<image href="${tankIcon(sg.tank)}" x="${ix - 26}" y="${iy - 26}" width="52" height="52" transform="rotate(${mid} ${ix} ${iy})"/>`
         : `<g transform="rotate(${mid} ${ix} ${iy})">${ic(sg.gems ? 'gem' : 'star', 40).replace('<svg ', `<svg x="${ix - 20}" y="${iy - 20}" `)}</g>`;
-      // short value label along the arc where the slice is wide enough; tank slices show only their icon
+      // short label along the arc of each slice: the amount, or the tank's name
       const [tx, ty] = pt(R * 0.53, mid);
-      if (!sg.tank) deco += `<text x="${tx}" y="${ty}" transform="rotate(${mid} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle"
-        font-family="Fredoka, sans-serif" font-weight="700" font-size="15" fill="#fff" stroke="${shade(sg.color, 0.45)}" stroke-width="4" paint-order="stroke">+${segValue(sg)}</text>`;
+      const label = sg.tank ? TANKS[sg.tank].name : '+' + segValue(sg);
+      const fit = label.length > 6 ? 'textLength="54" lengthAdjust="spacingAndGlyphs"' : ''; // long tank names squeezed to the slice width
+      deco += `<text x="${tx}" y="${ty}" transform="rotate(${mid} ${tx} ${ty})" text-anchor="middle" dominant-baseline="middle" ${fit}
+        font-family="Fredoka, sans-serif" font-weight="700" font-size="${sg.tank ? 13 : 15}" fill="#fff" stroke="${shade(sg.color, 0.45)}" stroke-width="4" paint-order="stroke">${label}</text>`;
       deco += icon;
     });
     let bulbs = '';
