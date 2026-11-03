@@ -24,6 +24,8 @@ const P = {
     <path d="M54 12v16H38z" fill="#5be37a"/><path d="M10 52V36h16z" fill="#5be37a"/>`,
   burst: `<path d="M32 4l6 14 14-6-6 14 14 6-14 6 6 14-14-6-6 14-6-14-14 6 6-14-14-6 14-6-6-14 14 6z" fill="#ff4d2e"/><path d="M32 18l4 9 9-3-3 8 8 0-8 4 3 9-9-4-4 8-4-8-9 4 3-9-8-4 8 0-3-8 9 3z" fill="#ffd21f"/>`,
   door: `<rect x="14" y="6" width="36" height="52" rx="3" fill="#ffd9a8"/><rect x="20" y="12" width="24" height="40" rx="2" fill="#c96a1e"/><circle cx="38" cy="33" r="3.5" fill="#ffe08a"/>`,
+  crown: `<path d="M8 22l12 10 12-18 12 18 12-10-5 28H13z" fill="#ffc400"/><path d="M13 50h38v6H13z" fill="#ff9d00"/><circle cx="8" cy="20" r="4" fill="#ffc400"/><circle cx="56" cy="20" r="4" fill="#ffc400"/><circle cx="32" cy="12" r="4" fill="#ffc400"/>`,
+  copy: `<rect x="20" y="18" width="32" height="38" rx="5" fill="#ffffff"/><rect x="12" y="8" width="32" height="38" rx="5" fill="#cfe7ff"/><path d="M20 20h16M20 28h16M20 36h10" stroke="#2f8fe0" stroke-width="4" stroke-linecap="round"/>`,
   people: `<circle cx="22" cy="22" r="9" fill="#fff"/><path d="M6 52c0-12 7-18 16-18s16 6 16 18z" fill="#fff"/><circle cx="43" cy="20" r="8" fill="#d9f7e2"/><path d="M36 33c10-3 22 2 22 17H40z" fill="#d9f7e2"/>`,
   x: `<path d="M14 14l36 36M50 14L14 50" ${L('#fff', 10)}/>`,
   check: `<path d="M10 34l14 14 30-32" ${L('#5be37a', 9)}/>`,

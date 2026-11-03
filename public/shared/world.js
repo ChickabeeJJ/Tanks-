@@ -1,6 +1,6 @@
 // Authoritative game simulation. Runs on the Node server (multiplayer) and in the
 // browser (offline fallback). Pure JS, no DOM / Node APIs.
-import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME, MOVE_ACCEL, ROOM_SIZE, MAX_BOTS, TEAM_TARGET } from './config.js';
+import { DT, MODES, SHAPES, SHAPE_LIST, BASE_CAP, MAX_CAP, BULLET_KINDS, FX, SPAWN_SHIELD, COMBAT_TIME, MOVE_ACCEL, ROOM_SIZE, MAX_BOTS, TEAM_TARGET, partyCap } from './config.js';
 import { TANKS, getTank, derived, canUse, upgradeOptions } from './tanks.js';
 import { addXp, statPointsForLevel, MAX_LEVEL } from './progression.js';
 import { botName, botLevel } from './names.js';
@@ -142,6 +142,18 @@ export class World {
     return best;
   }
 
+  // a requested team (party members stay together); a bot gives up its seat if that team is full
+  pickTeam(want) {
+    const n = this.mode.teams;
+    if (!n || !(want >= 1 && want <= n)) return this.assignTeam();
+    let count = 0, bot = null;
+    for (const t of this.tanks.values()) if (t.team === want) { count++; if (t.isBot && !bot) bot = t; }
+    if (count >= partyCap(this.modeId)) {
+      if (bot) this.removeTank(bot.id); else return this.assignTeam();
+    }
+    return want;
+  }
+
   // make room on a full team-capped server: a bot gives up its slot for a joining player
   freeTeamSlot() {
     const cap = this.mode.teamCap;
@@ -211,7 +223,7 @@ export class World {
       level: clamp(Math.floor(o.level || 1), 1, MAX_LEVEL), xp: Math.max(0, Math.floor(o.xp || 0)),
       skin: SKIN_IDS.includes(o.skin) ? o.skin : 'default', owned, caps,
       xpMul: clamp(o.xpMul || 1, 1, 2), gemMul: clamp(o.gemMul || 1, 1, 2), bonusPts: clamp(Math.floor(o.bonusPts || 0), 0, 10),
-      team: this.assignTeam(), tankId: 'default', stats: [0, 0, 0, 0, 0, 0, 0, 0], spent: 0,
+      team: this.pickTeam(o.isBot ? 0 : o.team), tankId: 'default', stats: [0, 0, 0, 0, 0, 0, 0, 0], spent: 0,
       x: 0, z: 0, vx: 0, vz: 0, aim: 0, r: 2, hp: 100, d: null, alive: false,
       input: { mx: 0, mz: 0, aim: 0, fire: false }, seq: 0, cd: [], orbs: 0, orbSeq: 0,
       shieldUntil: 0, lastDmg: 0, slowUntil: 0, combatUntil: 0, kills: 0, score: 0, sessionXp: 0,

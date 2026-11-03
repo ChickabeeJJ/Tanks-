@@ -91,4 +91,34 @@ export const SDK = {
   showInviteButton(params) { return this.call((s) => s.game.showInviteButton(params)); },
   hideInviteButton() { this.call((s) => s.game.hideInviteButton()); },
   get instantMultiplayer() { return !!this.call((s) => s.game.isInstantMultiplayer); },
+
+  // --- multiplayer room (CrazyGames 'join friend' + invite buttons)
+  // updateRoom: tell CrazyGames which room/party the player is in and whether friends can join.
+  // The SDK rejects updates sent less than 250 ms apart, so they are throttled (latest one wins).
+  _roomKey: '', _roomT: 0, _roomTimer: null, _roomNext: null,
+  updateRoom(roomId, isJoinable, inviteParams) {
+    const upd = { roomId: String(roomId), isJoinable: !!isJoinable, inviteParams: inviteParams || {} };
+    const key = JSON.stringify(upd);
+    if (key === this._roomKey && !this._roomTimer) return;
+    this._roomNext = upd;
+    const send = () => {
+      this._roomTimer = null;
+      const u = this._roomNext; this._roomNext = null;
+      if (!u) return;
+      this._roomKey = JSON.stringify(u); this._roomT = Date.now();
+      this.call((s) => s.game.updateRoom && s.game.updateRoom(u));
+    };
+    const wait = 260 - (Date.now() - this._roomT);
+    if (wait <= 0 && !this._roomTimer) send();
+    else if (!this._roomTimer) this._roomTimer = setTimeout(send, Math.max(0, wait));
+  },
+  leftRoom() {
+    if (!this._roomKey) return;
+    this._roomKey = ''; this._roomNext = null;
+    if (this._roomTimer) { clearTimeout(this._roomTimer); this._roomTimer = null; }
+    this._roomT = Date.now();
+    this.call((s) => s.game.leftRoom && s.game.leftRoom());
+  },
+  // a friend's invite was accepted while the game is already open
+  onJoinRoom(f) { this.call((s) => s.game.addJoinRoomListener && s.game.addJoinRoomListener((params) => f(params || {}))); },
 };

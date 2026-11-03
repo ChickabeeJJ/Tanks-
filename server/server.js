@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { World } from '../public/shared/world.js';
-import { DT, MODES, SNAP_EVERY } from '../public/shared/config.js';
+import { DT, MODES, SNAP_EVERY, PARTY_MAX, partyCap } from '../public/shared/config.js';
 import { cleanName, cleanChat } from '../public/shared/filter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,7 +38,7 @@ class Room {
   join(client, msg) {
     const t = this.world.addTank({
       name: cleanName(msg.name), level: msg.level, xp: msg.xp, skin: msg.skin, owned: msg.owned, caps: msg.caps,
-      xpMul: msg.xpMul, gemMul: msg.gemMul, uid: String(msg.uid || '').slice(0, 40),
+      xpMul: msg.xpMul, gemMul: msg.gemMul, uid: String(msg.uid || '').slice(0, 40), team: msg.team | 0,
     });
     client.room = this;
     client.tankId = t.id;
@@ -74,6 +74,117 @@ function findRoom(mode, roomId) {
     if (!best || r.humans > best.humans) best = r; // pack players together
   }
   return best || new Room(mode);
+}
+
+// ------------------------------------------------------------------ parties
+// A party is a group of friends (code like 'K7QPM') that queues together: the leader picks a mode and
+// starts, and every member is sent to the same server (and the same team in team modes).
+const parties = new Map();
+const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+let partySeq = 1;
+function newCode() {
+  for (;;) {
+    let c = '';
+    for (let i = 0; i < 5; i++) c += CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)];
+    if (!parties.has(c)) return c;
+  }
+}
+function partyState(p) {
+  return { code: p.code, leader: p.leader, mode: p.mode, max: PARTY_MAX,
+    members: [...p.members.values()].map((m) => ({ id: m.pid, name: m.name, level: m.level, skin: m.skin })) };
+}
+function partyBroadcast(p) {
+  const st = partyState(p);
+  for (const m of p.members.values()) m.send({ t: 'party', ...st, you: m.pid });
+}
+function setProfile(client, m) {
+  client.name = cleanName(m.name) || 'Guest';
+  client.level = Math.max(1, Math.min(9999, m.level | 0));
+  client.skin = String(m.skin || 'default').slice(0, 24);
+}
+function partyLeave(client, reason) {
+  const p = client.party && parties.get(client.party);
+  client.party = null;
+  if (!p) return;
+  p.members.delete(client.pid);
+  if (reason) client.send({ t: 'p_left', reason });
+  if (!p.members.size) { parties.delete(p.code); return; }
+  if (p.leader === client.pid) p.leader = p.members.keys().next().value; // next member leads
+  partyBroadcast(p);
+}
+// a server (and team) with room for the whole party
+function placeParty(mode, n) {
+  const md = MODES[mode];
+  const fit = (r) => {
+    if (r.mode !== mode || r.humans + n > md.maxHumans) return null;
+    if (!md.teams) return { room: r, team: 0 };
+    const humans = new Array(md.teams + 1).fill(0);
+    for (const c of r.clients) { const t = r.world.tanks.get(c.tankId); if (t) humans[t.team]++; }
+    let best = 0;
+    for (let k = 1; k <= md.teams; k++) if (humans[k] + n <= partyCap(mode) && (!best || humans[k] < humans[best])) best = k;
+    return best ? { room: r, team: best } : null;
+  };
+  let pick = null;
+  for (const r of rooms.values()) { const f = fit(r); if (f && (!pick || r.humans > pick.room.humans)) pick = f; }
+  if (!pick) { const r = new Room(mode); pick = fit(r) || { room: r, team: md.teams ? 1 : 0 }; }
+  return pick;
+}
+function partyMsg(client, m) {
+  switch (m.t) {
+    case 'p_create': {
+      partyLeave(client);
+      setProfile(client, m);
+      const p = { code: newCode(), leader: client.pid, mode: 'ffa', members: new Map() };
+      p.members.set(client.pid, client);
+      parties.set(p.code, p);
+      client.party = p.code;
+      partyBroadcast(p);
+      break;
+    }
+    case 'p_join': {
+      const code = String(m.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
+      const p = parties.get(code);
+      if (!p) return client.send({ t: 'p_err', msg: 'No party with that code.' });
+      if (client.party === code) return partyBroadcast(p);
+      if (p.members.size >= PARTY_MAX) return client.send({ t: 'p_err', msg: `That party is full (${PARTY_MAX} players).` });
+      partyLeave(client);
+      setProfile(client, m);
+      p.members.set(client.pid, client);
+      client.party = code;
+      partyBroadcast(p);
+      break;
+    }
+    case 'p_profile': {
+      setProfile(client, m);
+      const p = client.party && parties.get(client.party);
+      if (p) partyBroadcast(p);
+      break;
+    }
+    case 'p_leave': partyLeave(client); break;
+    case 'p_mode': {
+      const p = client.party && parties.get(client.party);
+      if (!p || p.leader !== client.pid || !MODES[m.mode]) return;
+      p.mode = m.mode;
+      partyBroadcast(p);
+      break;
+    }
+    case 'p_kick': {
+      const p = client.party && parties.get(client.party);
+      if (!p || p.leader !== client.pid) return;
+      const target = p.members.get(m.id | 0);
+      if (target && target !== client) partyLeave(target, 'You were removed from the party.');
+      break;
+    }
+    case 'p_start': {
+      const p = client.party && parties.get(client.party);
+      if (!p || p.leader !== client.pid) return;
+      const cap = partyCap(p.mode), n = p.members.size;
+      if (n > cap) return client.send({ t: 'p_err', msg: `Party of ${n} is too big for ${MODES[p.mode].name} (max ${cap}).` });
+      const { room, team } = placeParty(p.mode, n);
+      for (const mem of p.members.values()) mem.send({ t: 'p_go', mode: p.mode, room: room.id, team });
+      break;
+    }
+  }
 }
 
 // Fixed-rate loop for every room.
@@ -127,7 +238,7 @@ const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
 
 wss.on('connection', (ws) => {
   const client = {
-    ws, room: null, tankId: null, cs: null, lastChat: 0, msgs: 0,
+    ws, room: null, tankId: null, cs: null, lastChat: 0, msgs: 0, pid: partySeq++, party: null, name: 'Guest', level: 1, skin: 'default',
     send(o) { if (ws.readyState === 1) ws.send(JSON.stringify(o)); },
   };
   const rate = setInterval(() => { client.msgs = 0; }, 1000);
@@ -138,6 +249,7 @@ wss.on('connection', (ws) => {
     try { m = JSON.parse(raw); } catch { return; }
     if (!m || typeof m !== 'object') return;
     const room = client.room;
+    if (typeof m.t === 'string' && m.t.startsWith('p_')) return partyMsg(client, m);
     switch (m.t) {
       case 'join': {
         if (room) room.leave(client);
@@ -170,6 +282,7 @@ wss.on('connection', (ws) => {
   });
   ws.on('close', () => {
     clearInterval(rate);
+    partyLeave(client);
     if (client.room) client.room.leave(client);
   });
   ws.on('error', () => {});
