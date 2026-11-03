@@ -196,8 +196,8 @@ export function createHUD(G) {
 
     // ---------------- Q (tank upgrades)
     toggleQ() { if (this.mode !== 'arena') return; this.qOpen ? this.closeQ() : this.openQ(); },
-    openQ() { this.qOpen = true; this.closeE(); els.q.classList.remove('hidden'); $('#topbar', root).classList.add('mode-q'); this._qKey = ''; G.arena && G.arena.refreshQ(); },
-    closeQ() { this.qOpen = false; els.q.classList.add('hidden'); $('#topbar', root).classList.remove('mode-q'); },
+    openQ() { this.qOpen = true; this.closeE(); clearTimeout(this._qT); els.q.classList.remove('hidden', 'closing'); els.q.classList.add('opening'); this._qT = setTimeout(() => els.q.classList.remove('opening'), 520); $('#topbar', root).classList.add('mode-q'); this._qKey = ''; G.arena && G.arena.refreshQ(); },
+    closeQ() { const was = this.qOpen; this.qOpen = false; clearTimeout(this._qT); if (was && !els.q.classList.contains('hidden')) { els.q.classList.remove('opening'); els.q.classList.add('closing'); this._qT = setTimeout(() => { els.q.classList.add('hidden'); els.q.classList.remove('closing'); }, 240); } else els.q.classList.add('hidden'); $('#topbar', root).classList.remove('mode-q'); },
     renderQ(opts) {
       badge(els.qBadge, opts.filter((o) => o.usable).length);
       if (!this.qOpen) return;
