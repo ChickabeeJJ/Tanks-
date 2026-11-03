@@ -1,0 +1,9 @@
+# One-click multiplayer server on Render (free plan): dashboard.render.com -> New -> Blueprint -> pick this repo.
+services:
+  - type: web
+    name: tankshot-io
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/ping

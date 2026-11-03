@@ -88,7 +88,7 @@ export class Arena {
     const url = await resolveServer();
     if (url) {
       const c = new OnlineConn(url, h);
-      if (await c.connect()) conn = c;
+      if (await c.connect(12000)) conn = c; // free hosts can take a few seconds to wake up
     }
     if (this.stopped) { if (conn) conn.close(); return; }
     if (!conn) conn = new OfflineConn(h);
